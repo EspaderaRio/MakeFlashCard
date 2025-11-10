@@ -64,36 +64,21 @@ window.aiAssistantSDK = {
     out.scrollTop = out.scrollHeight;
   },
 
-  async askOpenAI(message) {
-    const OPENAI_API_KEY = "YOUR_API_KEY_HERE"; // ⚠️ replace or secure later
-    try {
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: "You are an AI assistant for a flashcard-making app. Help users come up with smart questions and answers, guide them on how to use the app, and give study advice."
-            },
-            { role: "user", content: message }
-          ]
-        })
-      });
-
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content || "Hmm, I’m not sure. Try asking in a different way!";
-      return content;
-    } catch (err) {
-      console.error("[aiAssistantSDK] Error:", err);
-      return "⚠️ Error connecting to AI. Please check your network or API key.";
-    }
+ async askOpenAI(message) {
+  try {
+    const res = await fetch("http://localhost:3000/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    const data = await res.json();
+    return data.reply || "No reply received.";
+  } catch (err) {
+    console.error("[aiAssistantSDK] Error:", err);
+    return "⚠️ Error connecting to AI server.";
   }
-};
+}
+
 
 // Initialize after page loads
 window.addEventListener("DOMContentLoaded", () => {
