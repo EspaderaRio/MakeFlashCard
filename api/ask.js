@@ -1,6 +1,17 @@
+import express from "express";
+import cors from "cors";
 import fetch from "node-fetch";
+import dotenv from "dotenv";
 
-export default async function handler(req, res) {
+dotenv.config();
+const app = express();
+
+// Allow requests from GitHub Pages origin
+app.use(cors({ origin: "https://espaderario.github.io" }));
+
+app.use(express.json());
+
+app.post("/api/ask", async (req, res) => {
   const { message } = req.body;
   try {
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -12,20 +23,17 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: [
-          {
-            role: "system",
-            content:
-              "You are an AI assistant for a flashcard-making app. Help users create and study effectively.",
-          },
+          { role: "system", content: "You are an AI assistant for flashcards." },
           { role: "user", content: message },
         ],
       }),
     });
-
     const data = await aiRes.json();
-    res.status(200).json({ reply: data.choices?.[0]?.message?.content || "No response" });
+    res.json({ reply: data.choices?.[0]?.message?.content || "No response" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
-}
+});
+
+export default app;
