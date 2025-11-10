@@ -32,8 +32,10 @@ export default async function handler(req, res) {
       }),
     });
 
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "No response from AI";
+   const data = await response.json();
+console.log("[OpenAI response]", data); // <--- Add this
+const reply = data.choices?.[0]?.message?.content || "No response from AI";
+
 
     res.status(200).json({ reply });
   } catch (err) {
