@@ -78,8 +78,7 @@ window.aiAssistantSDK = {
     return "⚠️ Error connecting to AI server.";
   }
 }
-
-
+}
 // Initialize after page loads
 window.addEventListener("DOMContentLoaded", () => {
   aiAssistantSDK.init();
