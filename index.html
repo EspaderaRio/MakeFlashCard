@@ -125,20 +125,20 @@ window.elementSDK = {
 async function initApp() {
   try {
     // --- Initialize data SDK ---
-    if (!window.dataSdk || typeof window.dataSdk.init !== "function") {
-      console.error("dataSdk not loaded or init not found!");
+    if (!window.dataSDK || typeof window.dataSDK.init !== "function") {
+      console.error("dataSDK not loaded or init not found!");
       return;
     }
 
-    const initResult = await window.dataSdk.init(dataHandler);
+    const initResult = await window.dataSDK.init(dataHandler);
     if (!initResult.isOk) {
       showToast("Failed to initialize app");
       return;
     }
 
     // --- Initialize element SDK if available ---
-    if (window.elementSdk && typeof window.elementSdk.init === "function") {
-      window.elementSdk.init({
+    if (window.elementSDK && typeof window.elementSDK.init === "function") {
+      window.elementSDK.init({
         defaultConfig,
         onConfigChange,
         mapToCapabilities: (config) => ({
@@ -147,35 +147,35 @@ async function initApp() {
               get: () => config.background_color || defaultConfig.background_color,
               set: (value) => {
                 config.background_color = value;
-                window.elementSdk.setConfig({ background_color: value });
+                window.elementSDK.setConfig({ background_color: value });
               },
             },
             {
               get: () => config.surface_color || defaultConfig.surface_color,
               set: (value) => {
                 config.surface_color = value;
-                window.elementSdk.setConfig({ surface_color: value });
+                window.elementSDK.setConfig({ surface_color: value });
               },
             },
             {
               get: () => config.text_color || defaultConfig.text_color,
               set: (value) => {
                 config.text_color = value;
-                window.elementSdk.setConfig({ text_color: value });
+                window.elementSDK.setConfig({ text_color: value });
               },
             },
             {
               get: () => config.primary_action_color || defaultConfig.primary_action_color,
               set: (value) => {
                 config.primary_action_color = value;
-                window.elementSdk.setConfig({ primary_action_color: value });
+                window.elementSDK.setConfig({ primary_action_color: value });
               },
             },
             {
               get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
               set: (value) => {
                 config.secondary_action_color = value;
-                window.elementSdk.setConfig({ secondary_action_color: value });
+                window.elementSDK.setConfig({ secondary_action_color: value });
               },
             },
           ],
@@ -184,14 +184,14 @@ async function initApp() {
             get: () => config.font_family || defaultConfig.font_family,
             set: (value) => {
               config.font_family = value;
-              window.elementSdk.setConfig({ font_family: value });
+              window.elementSDK.setConfig({ font_family: value });
             },
           },
           fontSizeable: {
             get: () => config.font_size || defaultConfig.font_size,
             set: (value) => {
               config.font_size = value;
-              window.elementSdk.setConfig({ font_size: value });
+              window.elementSDK.setConfig({ font_size: value });
             },
           },
         }),
@@ -203,7 +203,7 @@ async function initApp() {
           ]),
       });
 
-      await onConfigChange(window.elementSdk.config);
+      await onConfigChange(window.elementSDK.config);
     } else {
       await onConfigChange(defaultConfig);
     }
@@ -219,7 +219,7 @@ async function initApp() {
 
 window.addEventListener("DOMContentLoaded", () => {
   const interval = setInterval(() => {
-    if (window.dataSdk && typeof window.dataSdk.init === "function") {
+    if (window.dataSDK && typeof window.dataSDK.init === "function") {
       clearInterval(interval);
       initApp();
     }
@@ -1450,7 +1450,7 @@ window.addEventListener("DOMContentLoaded", () => {
       
       if (settings) {
         const updated = { ...settings, ...updates };
-        await window.dataSdk.update(updated);
+        await window.dataSDK.update(updated);
       } else {
         const newSettings = {
           id: 'settings-1',
@@ -1475,7 +1475,7 @@ window.addEventListener("DOMContentLoaded", () => {
           lastStudyDate: '',
           ...updates
         };
-        await window.dataSdk.create(newSettings);
+        await window.dataSDK.create(newSettings);
       }
     }
 
@@ -1494,7 +1494,7 @@ window.addEventListener("DOMContentLoaded", () => {
           ...existingSession,
           cardsStudied: existingSession.cardsStudied + cardsStudied
         };
-        await window.dataSdk.update(updated);
+        await window.dataSDK.update(updated);
       } else {
         const newSession = {
           id: `session-${Date.now()}`,
@@ -1518,7 +1518,7 @@ window.addEventListener("DOMContentLoaded", () => {
           longestStreak: 0,
           lastStudyDate: ''
         };
-        await window.dataSdk.create(newSession);
+        await window.dataSDK.create(newSession);
       }
 
       await updateStreak();
@@ -1593,7 +1593,7 @@ window.addEventListener("DOMContentLoaded", () => {
       }
 
       const sessions = getStudySessions();
-      const config = window.elementSdk?.config || defaultConfig;
+      const config = window.elementSDK?.config || defaultConfig;
 
       last7Days.forEach(date => {
         const session = sessions.find(s => s.studySessionDate === date);
@@ -1716,7 +1716,7 @@ window.addEventListener("DOMContentLoaded", () => {
       card.className = 'subject-card';
       card.dataset.subjectId = subject.id;
 
-      const config = window.elementSdk?.config || defaultConfig;
+      const config = window.elementSDK?.config || defaultConfig;
       card.style.background = config.surface_color || defaultConfig.surface_color;
       card.style.color = config.text_color || defaultConfig.text_color;
 
@@ -1833,7 +1833,7 @@ window.addEventListener("DOMContentLoaded", () => {
       item.className = 'flashcard-item';
       item.dataset.cardId = card.id;
 
-      const config = window.elementSdk?.config || defaultConfig;
+      const config = window.elementSDK?.config || defaultConfig;
       item.style.background = config.surface_color || defaultConfig.surface_color;
       item.style.color = config.text_color || defaultConfig.text_color;
 
@@ -1908,10 +1908,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
       const cards = getCardsForSubject(subject.id);
       for (const card of cards) {
-        await window.dataSdk.delete(card);
+        await window.dataSDK.delete(card);
       }
 
-      const result = await window.dataSdk.delete(subject.record);
+      const result = await window.dataSDK.delete(subject.record);
       
       if (result.isOk) {
         showToast('Subject deleted successfully');
@@ -1928,7 +1928,7 @@ window.addEventListener("DOMContentLoaded", () => {
       deleteBtn.innerHTML = '<span class="loading-spinner"></span>';
       deleteBtn.disabled = true;
 
-      const result = await window.dataSdk.delete(card);
+      const result = await window.dataSDK.delete(card);
       
       if (result.isOk) {
         showToast('Card deleted successfully');
@@ -2159,7 +2159,7 @@ window.addEventListener("DOMContentLoaded", () => {
         lastStudyDate: ''
       };
 
-      const result = await window.dataSdk.create(newSubject);
+      const result = await window.dataSDK.create(newSubject);
 
       if (result.isOk) {
         document.getElementById('addSubjectForm').reset();
@@ -2229,7 +2229,7 @@ window.addEventListener("DOMContentLoaded", () => {
         lastStudyDate: ''
       };
 
-      const result = await window.dataSdk.create(newCard);
+      const result = await window.dataSDK.create(newCard);
 
       if (result.isOk) {
         document.getElementById('addCardForm').reset();
@@ -2370,7 +2370,7 @@ window.addEventListener("DOMContentLoaded", () => {
         lastReviewed: now.toISOString(),
         nextReview: nextReview.toISOString()
       };
-      const result = await window.dataSdk.update(updatedCard);
+      const result = await window.dataSDK.update(updatedCard);
 
       if (result.isOk) {
         showToast('Marked for practice');
@@ -2403,7 +2403,7 @@ window.addEventListener("DOMContentLoaded", () => {
         lastReviewed: now.toISOString(),
         nextReview: nextReview.toISOString()
       };
-      const result = await window.dataSdk.update(updatedCard);
+      const result = await window.dataSDK.update(updatedCard);
 
       if (result.isOk) {
         showToast('Great job! 🎉');
@@ -2460,14 +2460,14 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     async function init() {
-      const initResult = await window.dataSdk.init(dataHandler);
+      const initResult = await window.dataSDK.init(dataHandler);
       if (!initResult.isOk) {
         showToast('Failed to initialize app');
         return;
       }
 
-      if (window.elementSdk) {
-        window.elementSdk.init({
+      if (window.elementSDK) {
+        window.elementSDK.init({
           defaultConfig,
           onConfigChange,
           mapToCapabilities: (config) => ({
@@ -2476,35 +2476,35 @@ window.addEventListener("DOMContentLoaded", () => {
                 get: () => config.background_color || defaultConfig.background_color,
                 set: (value) => {
                   config.background_color = value;
-                  window.elementSdk.setConfig({ background_color: value });
+                  window.elementSDK.setConfig({ background_color: value });
                 }
               },
               {
                 get: () => config.surface_color || defaultConfig.surface_color,
                 set: (value) => {
                   config.surface_color = value;
-                  window.elementSdk.setConfig({ surface_color: value });
+                  window.elementSDK.setConfig({ surface_color: value });
                 }
               },
               {
                 get: () => config.text_color || defaultConfig.text_color,
                 set: (value) => {
                   config.text_color = value;
-                  window.elementSdk.setConfig({ text_color: value });
+                  window.elementSDK.setConfig({ text_color: value });
                 }
               },
               {
                 get: () => config.primary_action_color || defaultConfig.primary_action_color,
                 set: (value) => {
                   config.primary_action_color = value;
-                  window.elementSdk.setConfig({ primary_action_color: value });
+                  window.elementSDK.setConfig({ primary_action_color: value });
                 }
               },
               {
                 get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
                 set: (value) => {
                   config.secondary_action_color = value;
-                  window.elementSdk.setConfig({ secondary_action_color: value });
+                  window.elementSDK.setConfig({ secondary_action_color: value });
                 }
               }
             ],
@@ -2513,14 +2513,14 @@ window.addEventListener("DOMContentLoaded", () => {
               get: () => config.font_family || defaultConfig.font_family,
               set: (value) => {
                 config.font_family = value;
-                window.elementSdk.setConfig({ font_family: value });
+                window.elementSDK.setConfig({ font_family: value });
               }
             },
             fontSizeable: {
               get: () => config.font_size || defaultConfig.font_size,
               set: (value) => {
                 config.font_size = value;
-                window.elementSdk.setConfig({ font_size: value });
+                window.elementSDK.setConfig({ font_size: value });
               }
             }
           }),
@@ -2531,7 +2531,7 @@ window.addEventListener("DOMContentLoaded", () => {
           ])
         });
 
-        await onConfigChange(window.elementSdk.config);
+        await onConfigChange(window.elementSDK.config);
       } else {
         await onConfigChange(defaultConfig);
       }
