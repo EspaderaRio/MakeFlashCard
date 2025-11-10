@@ -1,0 +1,1633 @@
+<!doctype html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flashcards</title>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    .app-container {
+      min-height: 100%;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .app-title {
+      font-size: 48px;
+      font-weight: 700;
+      margin: 0 0 8px 0;
+    }
+
+    .breadcrumb {
+      font-size: 16px;
+      opacity: 0.7;
+      margin-top: 8px;
+    }
+
+    .breadcrumb-link {
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .main-content {
+      width: 100%;
+      max-width: 900px;
+      flex: 1;
+    }
+
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary {
+      color: white;
+    }
+
+    .btn-secondary {
+      background: white;
+      border: 2px solid;
+    }
+
+    .subjects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .subject-card {
+      padding: 32px 24px;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      position: relative;
+    }
+
+    .subject-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    .subject-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .subject-name {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .subject-count {
+      font-size: 14px;
+      opacity: 0.7;
+    }
+
+    .delete-subject-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      opacity: 0;
+    }
+
+    .subject-card:hover .delete-subject-btn {
+      opacity: 1;
+    }
+
+    .delete-subject-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .flashcard-list {
+      display: grid;
+      gap: 16px;
+    }
+
+    .flashcard-item {
+      padding: 20px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      transition: transform 0.2s;
+    }
+
+    .flashcard-item:hover {
+      transform: translateX(4px);
+    }
+
+    .flashcard-content {
+      flex: 1;
+    }
+
+    .flashcard-question {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .flashcard-answer {
+      font-size: 16px;
+      opacity: 0.8;
+    }
+
+    .delete-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .delete-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .form-container {
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 32px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .form-input,
+    .form-textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid;
+      border-radius: 8px;
+      font-size: 16px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus {
+      outline: none;
+      border-color: currentColor;
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .study-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .card-counter {
+      font-size: 18px;
+      font-weight: 600;
+      opacity: 0.7;
+    }
+
+    .flashcard {
+      width: 100%;
+      max-width: 600px;
+      height: 400px;
+      perspective: 1000px;
+      cursor: pointer;
+    }
+
+    .flashcard-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
+
+    .flashcard.flipped .flashcard-inner {
+      transform: rotateY(180deg);
+    }
+
+    .flashcard-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+
+    .flashcard-front {
+      background: white;
+    }
+
+    .flashcard-back {
+      transform: rotateY(180deg);
+    }
+
+    .flashcard-label {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.5;
+      margin-bottom: 16px;
+    }
+
+    .flashcard-text {
+      font-size: 28px;
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.4;
+      word-wrap: break-word;
+      max-width: 100%;
+    }
+
+    .study-controls {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .mastery-buttons {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      max-width: 600px;
+      margin-top: 16px;
+    }
+
+    .btn-mastery {
+      flex: 1;
+      padding: 12px 20px;
+      border: 2px solid;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white;
+    }
+
+    .btn-mastery:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-mastery.active {
+      color: white;
+    }
+
+    .btn-need-practice {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+
+    .btn-need-practice.active {
+      background: #ef4444;
+    }
+
+    .btn-got-it {
+      border-color: #10b981;
+      color: #10b981;
+    }
+
+    .btn-got-it.active {
+      background: #10b981;
+    }
+
+    .mastery-indicator {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    .mastery-need-practice {
+      background: #fee2e2;
+      color: #ef4444;
+    }
+
+    .mastery-got-it {
+      background: #d1fae5;
+      color: #10b981;
+    }
+
+    .shuffle-indicator {
+      font-size: 14px;
+      opacity: 0.6;
+      margin-left: 8px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      opacity: 0.6;
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .empty-state-text {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .empty-state-subtext {
+      font-size: 16px;
+      opacity: 0.7;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      padding: 16px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .math-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.03);
+      border-radius: 8px;
+    }
+
+    .math-btn {
+      padding: 8px 12px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
+      background: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 40px;
+    }
+
+    .math-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .math-btn:active {
+      transform: translateY(0);
+    }
+
+    .fraction-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+
+    .fraction-modal.show {
+      display: flex;
+    }
+
+    .fraction-modal-content {
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      max-width: 400px;
+      width: 90%;
+      max-height: 90%;
+      overflow-y: auto;
+    }
+
+    .fraction-modal-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .fraction-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 24px 0;
+      font-size: 32px;
+      font-weight: 600;
+    }
+
+    .fraction-numerator,
+    .fraction-denominator {
+      padding: 8px;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .fraction-line {
+      width: 100%;
+      height: 3px;
+      background: currentColor;
+      margin: 4px 0;
+    }
+
+    .fraction-input-group {
+      margin-bottom: 16px;
+    }
+
+    .fraction-input-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .fraction-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      font-size: 18px;
+      text-align: center;
+    }
+
+    .fraction-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    .fraction-modal-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="tailwindcss.js" type="text/javascript"></script>
+ </head>
+ <body>
+  <div class="app-container">
+   <div class="header">
+    <h1 class="app-title" id="appTitle">My Flashcards</h1>
+    <div class="breadcrumb" id="breadcrumb"></div>
+   </div>
+   <div class="main-content"><!-- Subjects View -->
+    <div id="subjectsView" class="view active">
+     <div class="action-buttons"><button class="btn btn-primary" id="addSubjectBtn">➕ Add Subject</button>
+     </div>
+     <div id="addSubjectFormContainer" style="display: none;">
+      <form class="form-container" id="addSubjectForm">
+       <div class="form-group"><label class="form-label" for="subjectNameInput">Subject Name</label> <input type="text" id="subjectNameInput" class="form-input" placeholder="e.g., Spanish, Biology, History" required>
+       </div>
+       <div class="action-buttons"><button type="submit" class="btn btn-primary" id="saveSubjectBtn"> <span id="saveSubjectBtnText">Create Subject</span> </button> <button type="button" class="btn btn-secondary" id="cancelSubjectBtn">Cancel</button>
+       </div>
+      </form>
+     </div>
+     <div id="subjectsGrid" class="subjects-grid"></div>
+     <div id="subjectsEmptyState" class="empty-state">
+      <div class="empty-state-icon">
+       📚
+      </div>
+      <div class="empty-state-text">
+       No subjects yet
+      </div>
+      <div class="empty-state-subtext">
+       Create a subject to start adding flashcards
+      </div>
+     </div>
+    </div><!-- Cards View -->
+    <div id="cardsView" class="view">
+     <div class="action-buttons"><button class="btn btn-secondary" id="backToSubjectsBtn">← Back to Subjects</button> <button class="btn btn-primary" id="addCardBtn">➕ Add Card</button> <button class="btn btn-secondary" id="studyBtn" disabled>📚 Study</button>
+     </div>
+     <div id="addCardFormContainer" style="display: none;">
+      <form class="form-container" id="addCardForm">
+       <div class="form-group"><label class="form-label" for="questionInput">Question</label> <textarea id="questionInput" class="form-textarea" placeholder="Enter your question" required></textarea>
+        <div class="math-buttons" id="questionMathButtons"><button type="button" class="math-btn" data-insert="+">+</button> <button type="button" class="math-btn" data-insert="-">−</button> <button type="button" class="math-btn" data-insert="×">×</button> <button type="button" class="math-btn" data-insert="÷">÷</button> <button type="button" class="math-btn" data-insert="=">=</button> <button type="button" class="math-btn" data-insert="(">(</button> <button type="button" class="math-btn" data-insert=")">)</button> <button type="button" class="math-btn" data-insert="²">x²</button> <button type="button" class="math-btn" data-insert="³">x³</button> <button type="button" class="math-btn" data-insert="√">√</button> <button type="button" class="math-btn" data-insert="∛">∛</button> <button type="button" class="math-btn fraction-btn" data-target="questionInput">⁄ Fraction</button> <button type="button" class="math-btn" data-insert="π">π</button> <button type="button" class="math-btn" data-insert="∞">∞</button> <button type="button" class="math-btn" data-insert="≈">≈</button> <button type="button" class="math-btn" data-insert="≠">≠</button> <button type="button" class="math-btn" data-insert="≤">≤</button> <button type="button" class="math-btn" data-insert="≥">≥</button> <button type="button" class="math-btn" data-insert="°">°</button> <button type="button" class="math-btn" data-insert="%">%</button>
+        </div>
+       </div>
+       <div class="form-group"><label class="form-label" for="answerInput">Answer</label> <textarea id="answerInput" class="form-textarea" placeholder="Enter the answer" required></textarea>
+        <div class="math-buttons" id="answerMathButtons"><button type="button" class="math-btn" data-insert="+">+</button> <button type="button" class="math-btn" data-insert="-">−</button> <button type="button" class="math-btn" data-insert="×">×</button> <button type="button" class="math-btn" data-insert="÷">÷</button> <button type="button" class="math-btn" data-insert="=">=</button> <button type="button" class="math-btn" data-insert="(">(</button> <button type="button" class="math-btn" data-insert=")">)</button> <button type="button" class="math-btn" data-insert="²">x²</button> <button type="button" class="math-btn" data-insert="³">x³</button> <button type="button" class="math-btn" data-insert="√">√</button> <button type="button" class="math-btn" data-insert="∛">∛</button> <button type="button" class="math-btn fraction-btn" data-target="answerInput">⁄ Fraction</button> <button type="button" class="math-btn" data-insert="π">π</button> <button type="button" class="math-btn" data-insert="∞">∞</button> <button type="button" class="math-btn" data-insert="≈">≈</button> <button type="button" class="math-btn" data-insert="≠">≠</button> <button type="button" class="math-btn" data-insert="≤">≤</button> <button type="button" class="math-btn" data-insert="≥">≥</button> <button type="button" class="math-btn" data-insert="°">°</button> <button type="button" class="math-btn" data-insert="%">%</button>
+        </div>
+       </div>
+       <div class="action-buttons"><button type="submit" class="btn btn-primary" id="saveCardBtn"> <span id="saveCardBtnText">Save Card</span> </button> <button type="button" class="btn btn-secondary" id="cancelCardBtn">Cancel</button>
+       </div>
+      </form>
+     </div>
+     <div id="flashcardList" class="flashcard-list"></div>
+     <div id="cardsEmptyState" class="empty-state">
+      <div class="empty-state-icon">
+       📝
+      </div>
+      <div class="empty-state-text">
+       No flashcards yet
+      </div>
+      <div class="empty-state-subtext">
+       Add your first flashcard to this subject
+      </div>
+     </div>
+    </div><!-- Study View -->
+    <div id="studyView" class="view">
+     <div class="action-buttons"><button class="btn btn-secondary" id="backToCardsBtn">← Back to Cards</button> <button class="btn btn-secondary" id="shuffleBtn">🔀 Shuffle</button>
+     </div>
+     <div class="study-container">
+      <div class="card-counter" id="studyCounter">
+       Card 1 of 1<span class="shuffle-indicator" id="shuffleIndicator"></span>
+      </div>
+      <div class="flashcard" id="flashcard">
+       <div class="flashcard-inner">
+        <div class="flashcard-face flashcard-front">
+         <div class="flashcard-label">
+          Question
+         </div>
+         <div class="flashcard-text" id="questionText">
+          Click to reveal answer
+         </div>
+        </div>
+        <div class="flashcard-face flashcard-back">
+         <div class="flashcard-label">
+          Answer
+         </div>
+         <div class="flashcard-text" id="answerText">
+          Answer appears here
+         </div>
+        </div>
+       </div>
+      </div>
+      <div class="mastery-buttons"><button class="btn-mastery btn-need-practice" id="needPracticeBtn"> ❌ Need Practice </button> <button class="btn-mastery btn-got-it" id="gotItBtn"> ✅ Got It! </button>
+      </div>
+      <div class="study-controls"><button class="btn btn-secondary" id="prevBtn" style="flex: 0 0 auto;">← Previous</button> <button class="btn btn-primary" id="nextBtn" style="flex: 1;">Next →</button>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+  <div class="toast" id="toast"></div><!-- Fraction Modal -->
+  <div class="fraction-modal" id="fractionModal">
+   <div class="fraction-modal-content">
+    <h2 class="fraction-modal-title">Build a Fraction</h2>
+    <div class="fraction-preview">
+     <div class="fraction-numerator" id="fractionPreviewNum">
+      ?
+     </div>
+     <div class="fraction-line"></div>
+     <div class="fraction-denominator" id="fractionPreviewDen">
+      ?
+     </div>
+    </div>
+    <div class="fraction-input-group"><label class="fraction-input-label" for="numeratorInput">Numerator (top)</label> <input type="text" id="numeratorInput" class="fraction-input" placeholder="Enter numerator">
+     <div class="math-buttons" style="margin-top: 8px;"><button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="+">+</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="-">−</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="×">×</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="÷">÷</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="=">=</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="(">(</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert=")">)</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="²">x²</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="³">x³</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="√">√</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="∛">∛</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="π">π</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="∞">∞</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="≈">≈</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="≠">≠</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="≤">≤</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="≥">≥</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="°">°</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="%">%</button>
+     </div>
+    </div>
+    <div class="fraction-input-group"><label class="fraction-input-label" for="denominatorInput">Denominator (bottom)</label> <input type="text" id="denominatorInput" class="fraction-input" placeholder="Enter denominator">
+     <div class="math-buttons" style="margin-top: 8px;"><button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="+">+</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="-">−</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="×">×</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="÷">÷</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="=">=</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="(">(</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert=")">)</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="²">x²</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="³">x³</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="√">√</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="∛">∛</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="π">π</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="∞">∞</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="≈">≈</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="≠">≠</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="≤">≤</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="≥">≥</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="°">°</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="%">%</button>
+     </div>
+    </div>
+    <div class="fraction-modal-buttons"><button class="btn btn-primary" id="insertFractionBtn" style="flex: 1;">Insert Fraction</button> <button class="btn btn-secondary" id="cancelFractionBtn" style="flex: 1;">Cancel</button>
+    </div>
+   </div>
+  </div>
+  <script>
+    const defaultConfig = {
+      background_color: "#f0f4f8",
+      surface_color: "#ffffff",
+      text_color: "#1a202c",
+      primary_action_color: "#3b82f6",
+      secondary_action_color: "#3b82f6",
+      font_family: "inherit",
+      font_size: 16,
+      app_title: "My Flashcards",
+      add_subject_text: "Add Subject",
+      study_button_text: "Study"
+    };
+
+    let allRecords = [];
+    let currentSubjectId = null;
+    let currentStudyIndex = 0;
+    let isFlipped = false;
+    let isShuffled = false;
+    let shuffledCards = [];
+
+    const subjectIcons = ['📚', '🔬', '🌍', '🎨', '💻', '🎵', '⚽', '🏛️', '🧮', '📖', '🌟', '🚀'];
+
+    function getSubjectIcon(subjectId) {
+      const hash = subjectId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      return subjectIcons[hash % subjectIcons.length];
+    }
+
+    const dataHandler = {
+      onDataChanged(data) {
+        allRecords = data;
+        renderSubjects();
+        if (currentSubjectId) {
+          renderCards();
+          updateStudyView();
+        }
+      }
+    };
+
+    async function onConfigChange(config) {
+      const backgroundColor = config.background_color || defaultConfig.background_color;
+      const surfaceColor = config.surface_color || defaultConfig.surface_color;
+      const textColor = config.text_color || defaultConfig.text_color;
+      const primaryActionColor = config.primary_action_color || defaultConfig.primary_action_color;
+      const secondaryActionColor = config.secondary_action_color || defaultConfig.secondary_action_color;
+      const fontFamily = config.font_family || defaultConfig.font_family;
+      const baseFontSize = config.font_size || defaultConfig.font_size;
+      const appTitle = config.app_title || defaultConfig.app_title;
+      const addSubjectText = config.add_subject_text || defaultConfig.add_subject_text;
+      const studyButtonText = config.study_button_text || defaultConfig.study_button_text;
+
+      document.body.style.fontFamily = `${fontFamily}, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+      document.querySelector('.app-container').style.background = backgroundColor;
+      
+      document.getElementById('appTitle').textContent = appTitle;
+      document.getElementById('appTitle').style.color = textColor;
+      document.getElementById('appTitle').style.fontSize = `${baseFontSize * 3}px`;
+      
+      document.getElementById('breadcrumb').style.color = textColor;
+      document.getElementById('breadcrumb').style.fontSize = `${baseFontSize}px`;
+
+      const primaryButtons = document.querySelectorAll('.btn-primary');
+      primaryButtons.forEach(btn => {
+        btn.style.background = primaryActionColor;
+        btn.style.fontSize = `${baseFontSize}px`;
+      });
+
+      const secondaryButtons = document.querySelectorAll('.btn-secondary');
+      secondaryButtons.forEach(btn => {
+        btn.style.borderColor = secondaryActionColor;
+        btn.style.color = secondaryActionColor;
+        btn.style.fontSize = `${baseFontSize}px`;
+      });
+
+      document.getElementById('addSubjectBtn').innerHTML = `➕ ${addSubjectText}`;
+      document.getElementById('studyBtn').innerHTML = `📚 ${studyButtonText}`;
+
+      const subjectCards = document.querySelectorAll('.subject-card');
+      subjectCards.forEach(card => {
+        card.style.background = surfaceColor;
+        card.style.color = textColor;
+      });
+
+      const flashcardItems = document.querySelectorAll('.flashcard-item');
+      flashcardItems.forEach(item => {
+        item.style.background = surfaceColor;
+        item.style.color = textColor;
+      });
+
+      const deleteButtons = document.querySelectorAll('.delete-btn, .delete-subject-btn');
+      deleteButtons.forEach(btn => {
+        btn.style.background = primaryActionColor;
+        btn.style.color = 'white';
+        btn.style.fontSize = `${baseFontSize * 0.875}px`;
+      });
+
+      const formContainers = document.querySelectorAll('.form-container');
+      formContainers.forEach(form => {
+        form.style.background = surfaceColor;
+        form.style.color = textColor;
+      });
+
+      const formLabels = document.querySelectorAll('.form-label');
+      formLabels.forEach(label => {
+        label.style.color = textColor;
+        label.style.fontSize = `${baseFontSize * 0.875}px`;
+      });
+
+      const formInputs = document.querySelectorAll('.form-input, .form-textarea');
+      formInputs.forEach(input => {
+        input.style.borderColor = textColor;
+        input.style.color = textColor;
+        input.style.fontSize = `${baseFontSize}px`;
+      });
+
+      const subjectNames = document.querySelectorAll('.subject-name');
+      subjectNames.forEach(name => {
+        name.style.fontSize = `${baseFontSize * 1.375}px`;
+      });
+
+      const subjectCounts = document.querySelectorAll('.subject-count');
+      subjectCounts.forEach(count => {
+        count.style.fontSize = `${baseFontSize * 0.875}px`;
+      });
+
+      const flashcardQuestions = document.querySelectorAll('.flashcard-question');
+      flashcardQuestions.forEach(q => {
+        q.style.fontSize = `${baseFontSize * 1.125}px`;
+      });
+
+      const flashcardAnswers = document.querySelectorAll('.flashcard-answer');
+      flashcardAnswers.forEach(a => {
+        a.style.fontSize = `${baseFontSize}px`;
+      });
+
+      document.querySelector('.card-counter').style.fontSize = `${baseFontSize * 1.125}px`;
+      document.querySelector('.card-counter').style.color = textColor;
+
+      const flashcardFront = document.querySelector('.flashcard-front');
+      flashcardFront.style.background = surfaceColor;
+      flashcardFront.style.color = textColor;
+
+      const flashcardBack = document.querySelector('.flashcard-back');
+      flashcardBack.style.background = primaryActionColor;
+      flashcardBack.style.color = 'white';
+
+      const flashcardLabels = document.querySelectorAll('.flashcard-label');
+      flashcardLabels.forEach(label => {
+        label.style.fontSize = `${baseFontSize * 0.875}px`;
+      });
+
+      const flashcardTexts = document.querySelectorAll('.flashcard-text');
+      flashcardTexts.forEach(text => {
+        text.style.fontSize = `${baseFontSize * 1.75}px`;
+      });
+
+      const emptyStates = document.querySelectorAll('.empty-state');
+      emptyStates.forEach(state => {
+        state.style.color = textColor;
+      });
+
+      const emptyStateIcons = document.querySelectorAll('.empty-state-icon');
+      emptyStateIcons.forEach(icon => {
+        icon.style.fontSize = `${baseFontSize * 4}px`;
+      });
+
+      const emptyStateTexts = document.querySelectorAll('.empty-state-text');
+      emptyStateTexts.forEach(text => {
+        text.style.fontSize = `${baseFontSize * 1.25}px`;
+      });
+
+      const emptyStateSubtexts = document.querySelectorAll('.empty-state-subtext');
+      emptyStateSubtexts.forEach(text => {
+        text.style.fontSize = `${baseFontSize}px`;
+      });
+
+      document.getElementById('toast').style.background = primaryActionColor;
+      document.getElementById('toast').style.color = 'white';
+      document.getElementById('toast').style.fontSize = `${baseFontSize}px`;
+    }
+
+    function getSubjects() {
+      const subjectMap = new Map();
+      allRecords.forEach(record => {
+        if (record.type === 'subject') {
+          subjectMap.set(record.subjectId, {
+            id: record.subjectId,
+            name: record.subjectName,
+            record: record,
+            cardCount: 0
+          });
+        }
+      });
+      
+      allRecords.forEach(record => {
+        if (record.type === 'card' && subjectMap.has(record.subjectId)) {
+          subjectMap.get(record.subjectId).cardCount++;
+        }
+      });
+
+      return Array.from(subjectMap.values());
+    }
+
+    function getCardsForSubject(subjectId) {
+      return allRecords.filter(record => 
+        record.type === 'card' && record.subjectId === subjectId
+      );
+    }
+
+    function renderSubjects() {
+      const subjects = getSubjects();
+      const grid = document.getElementById('subjectsGrid');
+      const emptyState = document.getElementById('subjectsEmptyState');
+
+      if (subjects.length === 0) {
+        grid.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+
+      const existingCards = new Map(
+        [...grid.children].map(el => [el.dataset.subjectId, el])
+      );
+
+      subjects.forEach(subject => {
+        if (existingCards.has(subject.id)) {
+          const card = existingCards.get(subject.id);
+          card.querySelector('.subject-name').textContent = subject.name;
+          card.querySelector('.subject-count').textContent = `${subject.cardCount} card${subject.cardCount !== 1 ? 's' : ''}`;
+          existingCards.delete(subject.id);
+        } else {
+          const card = createSubjectCard(subject);
+          grid.appendChild(card);
+        }
+      });
+
+      existingCards.forEach(el => el.remove());
+    }
+
+    function createSubjectCard(subject) {
+      const card = document.createElement('div');
+      card.className = 'subject-card';
+      card.dataset.subjectId = subject.id;
+
+      const config = window.elementSdk?.config || defaultConfig;
+      card.style.background = config.surface_color || defaultConfig.surface_color;
+      card.style.color = config.text_color || defaultConfig.text_color;
+
+      const icon = document.createElement('div');
+      icon.className = 'subject-icon';
+      icon.textContent = getSubjectIcon(subject.id);
+
+      const name = document.createElement('div');
+      name.className = 'subject-name';
+      name.textContent = subject.name;
+      name.style.fontSize = `${(config.font_size || defaultConfig.font_size) * 1.375}px`;
+
+      const count = document.createElement('div');
+      count.className = 'subject-count';
+      count.textContent = `${subject.cardCount} card${subject.cardCount !== 1 ? 's' : ''}`;
+      count.style.fontSize = `${(config.font_size || defaultConfig.font_size) * 0.875}px`;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-subject-btn';
+      deleteBtn.textContent = '×';
+      deleteBtn.style.background = config.primary_action_color || defaultConfig.primary_action_color;
+      deleteBtn.style.color = 'white';
+      deleteBtn.style.fontSize = `${(config.font_size || defaultConfig.font_size) * 1.5}px`;
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        deleteSubject(subject);
+      };
+
+      card.appendChild(deleteBtn);
+      card.appendChild(icon);
+      card.appendChild(name);
+      card.appendChild(count);
+
+      card.onclick = () => openSubject(subject.id, subject.name);
+
+      return card;
+    }
+
+    function openSubject(subjectId, subjectName) {
+      currentSubjectId = subjectId;
+      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="backToSubjects()">Subjects</span> / ${subjectName}`;
+      document.getElementById('subjectsView').classList.remove('active');
+      document.getElementById('cardsView').classList.add('active');
+      renderCards();
+    }
+
+    function backToSubjects() {
+      currentSubjectId = null;
+      document.getElementById('breadcrumb').textContent = '';
+      document.getElementById('cardsView').classList.remove('active');
+      document.getElementById('subjectsView').classList.add('active');
+      document.getElementById('addCardFormContainer').style.display = 'none';
+      document.getElementById('addCardForm').reset();
+    }
+
+    function renderCards() {
+      const cards = getCardsForSubject(currentSubjectId);
+      const listContainer = document.getElementById('flashcardList');
+      const emptyState = document.getElementById('cardsEmptyState');
+      const studyBtn = document.getElementById('studyBtn');
+
+      if (cards.length === 0) {
+        listContainer.innerHTML = '';
+        emptyState.style.display = 'block';
+        studyBtn.disabled = true;
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      studyBtn.disabled = false;
+
+      const existingItems = new Map(
+        [...listContainer.children].map(el => [el.dataset.cardId, el])
+      );
+
+      cards.forEach(card => {
+        if (existingItems.has(card.id)) {
+          const item = existingItems.get(card.id);
+          const questionDiv = item.querySelector('.flashcard-question');
+          questionDiv.innerHTML = '';
+          questionDiv.textContent = card.question;
+          
+          if (card.mastery === 'need-practice') {
+            const indicator = document.createElement('span');
+            indicator.className = 'mastery-indicator mastery-need-practice';
+            indicator.textContent = 'Need Practice';
+            questionDiv.appendChild(indicator);
+          } else if (card.mastery === 'got-it') {
+            const indicator = document.createElement('span');
+            indicator.className = 'mastery-indicator mastery-got-it';
+            indicator.textContent = 'Got It!';
+            questionDiv.appendChild(indicator);
+          }
+          
+          renderMathInElement(questionDiv, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '\\[', right: '\\]', display: true},
+              {left: '$', right: '$', display: false},
+              {left: '\\(', right: '\\)', display: false}
+            ],
+            throwOnError: false
+          });
+          
+          item.querySelector('.flashcard-answer').textContent = card.answer;
+          existingItems.delete(card.id);
+        } else {
+          const item = createFlashcardItem(card);
+          listContainer.appendChild(item);
+        }
+      });
+
+      existingItems.forEach(el => el.remove());
+    }
+
+    function createFlashcardItem(card) {
+      const item = document.createElement('div');
+      item.className = 'flashcard-item';
+      item.dataset.cardId = card.id;
+
+      const config = window.elementSdk?.config || defaultConfig;
+      item.style.background = config.surface_color || defaultConfig.surface_color;
+      item.style.color = config.text_color || defaultConfig.text_color;
+
+      const content = document.createElement('div');
+      content.className = 'flashcard-content';
+
+      const question = document.createElement('div');
+      question.className = 'flashcard-question';
+      question.textContent = card.question;
+      question.style.fontSize = `${(config.font_size || defaultConfig.font_size) * 1.125}px`;
+      
+      if (card.mastery === 'need-practice') {
+        const indicator = document.createElement('span');
+        indicator.className = 'mastery-indicator mastery-need-practice';
+        indicator.textContent = 'Need Practice';
+        question.appendChild(indicator);
+      } else if (card.mastery === 'got-it') {
+        const indicator = document.createElement('span');
+        indicator.className = 'mastery-indicator mastery-got-it';
+        indicator.textContent = 'Got It!';
+        question.appendChild(indicator);
+      }
+      
+      renderMathInElement(question, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false}
+        ],
+        throwOnError: false
+      });
+
+      const answer = document.createElement('div');
+      answer.className = 'flashcard-answer';
+      answer.textContent = card.answer;
+      answer.style.fontSize = `${config.font_size || defaultConfig.font_size}px`;
+      renderMathInElement(answer, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false}
+        ],
+        throwOnError: false
+      });
+
+      content.appendChild(question);
+      content.appendChild(answer);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-btn';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.style.background = config.primary_action_color || defaultConfig.primary_action_color;
+      deleteBtn.style.color = 'white';
+      deleteBtn.style.fontSize = `${(config.font_size || defaultConfig.font_size) * 0.875}px`;
+      deleteBtn.onclick = () => deleteCard(card);
+
+      item.appendChild(content);
+      item.appendChild(deleteBtn);
+
+      return item;
+    }
+
+    async function deleteSubject(subject) {
+      const deleteBtn = event.target;
+      const originalText = deleteBtn.textContent;
+      deleteBtn.innerHTML = '<span class="loading-spinner"></span>';
+      deleteBtn.disabled = true;
+
+      const cards = getCardsForSubject(subject.id);
+      for (const card of cards) {
+        await window.dataSdk.delete(card);
+      }
+
+      const result = await window.dataSdk.delete(subject.record);
+      
+      if (result.isOk) {
+        showToast('Subject deleted successfully');
+      } else {
+        showToast('Failed to delete subject');
+        deleteBtn.textContent = originalText;
+        deleteBtn.disabled = false;
+      }
+    }
+
+    async function deleteCard(card) {
+      const deleteBtn = event.target;
+      const originalText = deleteBtn.textContent;
+      deleteBtn.innerHTML = '<span class="loading-spinner"></span>';
+      deleteBtn.disabled = true;
+
+      const result = await window.dataSdk.delete(card);
+      
+      if (result.isOk) {
+        showToast('Card deleted successfully');
+      } else {
+        showToast('Failed to delete card');
+        deleteBtn.textContent = originalText;
+        deleteBtn.disabled = false;
+      }
+    }
+
+    function updateStudyView() {
+      const cards = isShuffled ? shuffledCards : getCardsForSubject(currentSubjectId);
+      if (cards.length === 0) return;
+
+      const card = cards[currentStudyIndex];
+      
+      const questionEl = document.getElementById('questionText');
+      const answerEl = document.getElementById('answerText');
+      
+      questionEl.textContent = card.question;
+      answerEl.textContent = card.answer;
+
+      renderMathInElement(questionEl, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false}
+        ],
+        throwOnError: false
+      });
+
+      renderMathInElement(answerEl, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false}
+        ],
+        throwOnError: false
+      });
+
+      const shuffleIndicator = document.getElementById('shuffleIndicator');
+      shuffleIndicator.textContent = isShuffled ? '(Shuffled)' : '';
+
+      document.getElementById('studyCounter').innerHTML = `Card ${currentStudyIndex + 1} of ${cards.length}`;
+      document.getElementById('studyCounter').appendChild(shuffleIndicator);
+
+      const needPracticeBtn = document.getElementById('needPracticeBtn');
+      const gotItBtn = document.getElementById('gotItBtn');
+      
+      needPracticeBtn.classList.toggle('active', card.mastery === 'need-practice');
+      gotItBtn.classList.toggle('active', card.mastery === 'got-it');
+
+      document.getElementById('prevBtn').disabled = currentStudyIndex === 0;
+      document.getElementById('nextBtn').textContent = currentStudyIndex === cards.length - 1 ? 'Finish' : 'Next →';
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    document.getElementById('addSubjectBtn').addEventListener('click', () => {
+      document.getElementById('addSubjectFormContainer').style.display = 'block';
+      document.getElementById('subjectNameInput').focus();
+    });
+
+    document.getElementById('cancelSubjectBtn').addEventListener('click', () => {
+      document.getElementById('addSubjectFormContainer').style.display = 'none';
+      document.getElementById('addSubjectForm').reset();
+    });
+
+    document.getElementById('addSubjectForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (allRecords.length >= 999) {
+        showToast('Maximum limit of 999 items reached. Please delete some items first.');
+        return;
+      }
+
+      const saveBtn = document.getElementById('saveSubjectBtn');
+      const saveBtnText = document.getElementById('saveSubjectBtnText');
+      const originalText = saveBtnText.textContent;
+      
+      saveBtnText.innerHTML = '<span class="loading-spinner"></span>';
+      saveBtn.disabled = true;
+
+      const subjectName = document.getElementById('subjectNameInput').value.trim();
+      const subjectId = Date.now().toString();
+
+      const newSubject = {
+        id: `subject-${subjectId}`,
+        type: 'subject',
+        subjectId: subjectId,
+        subjectName: subjectName,
+        question: '',
+        answer: '',
+        mastery: '',
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await window.dataSdk.create(newSubject);
+
+      if (result.isOk) {
+        document.getElementById('addSubjectForm').reset();
+        document.getElementById('addSubjectFormContainer').style.display = 'none';
+        showToast('Subject created successfully');
+      } else {
+        showToast('Failed to create subject');
+      }
+
+      saveBtnText.textContent = originalText;
+      saveBtn.disabled = false;
+    });
+
+    document.getElementById('addCardBtn').addEventListener('click', () => {
+      document.getElementById('addCardFormContainer').style.display = 'block';
+      document.getElementById('questionInput').focus();
+    });
+
+    document.getElementById('cancelCardBtn').addEventListener('click', () => {
+      document.getElementById('addCardFormContainer').style.display = 'none';
+      document.getElementById('addCardForm').reset();
+    });
+
+    document.getElementById('addCardForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (allRecords.length >= 999) {
+        showToast('Maximum limit of 999 items reached. Please delete some items first.');
+        return;
+      }
+
+      const saveBtn = document.getElementById('saveCardBtn');
+      const saveBtnText = document.getElementById('saveCardBtnText');
+      const originalText = saveBtnText.textContent;
+      
+      saveBtnText.innerHTML = '<span class="loading-spinner"></span>';
+      saveBtn.disabled = true;
+
+      const question = document.getElementById('questionInput').value.trim();
+      const answer = document.getElementById('answerInput').value.trim();
+
+      const subject = getSubjects().find(s => s.id === currentSubjectId);
+
+      const newCard = {
+        id: `card-${Date.now()}`,
+        type: 'card',
+        subjectId: currentSubjectId,
+        subjectName: subject.name,
+        question,
+        answer,
+        mastery: '',
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await window.dataSdk.create(newCard);
+
+      if (result.isOk) {
+        document.getElementById('addCardForm').reset();
+        document.getElementById('addCardFormContainer').style.display = 'none';
+        showToast('Card added successfully');
+      } else {
+        showToast('Failed to add card: ' + (result.error?.message || 'Unknown error'));
+      }
+
+      saveBtnText.textContent = originalText;
+      saveBtn.disabled = false;
+    });
+
+    document.getElementById('backToSubjectsBtn').addEventListener('click', backToSubjects);
+
+    let currentFractionTarget = null;
+
+    document.querySelectorAll('.math-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        if (e.target.classList.contains('fraction-btn')) {
+          currentFractionTarget = e.target.dataset.target;
+          document.getElementById('fractionModal').classList.add('show');
+          document.getElementById('numeratorInput').value = '';
+          document.getElementById('denominatorInput').value = '';
+          document.getElementById('fractionPreviewNum').textContent = '?';
+          document.getElementById('fractionPreviewDen').textContent = '?';
+          document.getElementById('numeratorInput').focus();
+        } else {
+          const symbol = e.target.dataset.insert;
+          const textarea = e.target.closest('.form-group').querySelector('textarea');
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const text = textarea.value;
+          
+          textarea.value = text.substring(0, start) + symbol + text.substring(end);
+          textarea.selectionStart = textarea.selectionEnd = start + symbol.length;
+          textarea.focus();
+        }
+      });
+    });
+
+    document.getElementById('numeratorInput').addEventListener('input', (e) => {
+      const value = e.target.value || '?';
+      document.getElementById('fractionPreviewNum').textContent = value;
+    });
+
+    document.getElementById('denominatorInput').addEventListener('input', (e) => {
+      const value = e.target.value || '?';
+      document.getElementById('fractionPreviewDen').textContent = value;
+    });
+
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('fraction-math-btn')) {
+        const symbol = e.target.dataset.insert;
+        const targetId = e.target.dataset.target;
+        const input = document.getElementById(targetId);
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+        const text = input.value;
+        
+        input.value = text.substring(0, start) + symbol + text.substring(end);
+        input.selectionStart = input.selectionEnd = start + symbol.length;
+        input.focus();
+
+        if (targetId === 'numeratorInput') {
+          document.getElementById('fractionPreviewNum').textContent = input.value || '?';
+        } else {
+          document.getElementById('fractionPreviewDen').textContent = input.value || '?';
+        }
+      }
+    });
+
+    document.getElementById('insertFractionBtn').addEventListener('click', () => {
+      const numerator = document.getElementById('numeratorInput').value.trim();
+      const denominator = document.getElementById('denominatorInput').value.trim();
+
+      if (!numerator || !denominator) {
+        showToast('Please enter both numerator and denominator');
+        return;
+      }
+
+      const fraction = `$\\frac{${numerator}}{${denominator}}$`;
+      
+      const textarea = document.getElementById(currentFractionTarget);
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      
+      textarea.value = text.substring(0, start) + fraction + text.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + fraction.length;
+      
+      document.getElementById('fractionModal').classList.remove('show');
+      textarea.focus();
+    });
+
+    document.getElementById('cancelFractionBtn').addEventListener('click', () => {
+      document.getElementById('fractionModal').classList.remove('show');
+    });
+
+    document.getElementById('fractionModal').addEventListener('click', (e) => {
+      if (e.target.id === 'fractionModal') {
+        document.getElementById('fractionModal').classList.remove('show');
+      }
+    });
+
+    document.getElementById('studyBtn').addEventListener('click', () => {
+      currentStudyIndex = 0;
+      isFlipped = false;
+      isShuffled = false;
+      shuffledCards = [];
+      document.getElementById('flashcard').classList.remove('flipped');
+      
+      const subject = getSubjects().find(s => s.id === currentSubjectId);
+      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="backToSubjects()">Subjects</span> / <span class="breadcrumb-link" onclick="backToCards()">${subject.name}</span> / Study`;
+      
+      document.getElementById('cardsView').classList.remove('active');
+      document.getElementById('studyView').classList.add('active');
+      updateStudyView();
+    });
+
+    document.getElementById('shuffleBtn').addEventListener('click', () => {
+      const cards = getCardsForSubject(currentSubjectId);
+      shuffledCards = [...cards].sort(() => Math.random() - 0.5);
+      isShuffled = true;
+      currentStudyIndex = 0;
+      isFlipped = false;
+      document.getElementById('flashcard').classList.remove('flipped');
+      updateStudyView();
+      showToast('Cards shuffled! 🔀');
+    });
+
+    document.getElementById('needPracticeBtn').addEventListener('click', async () => {
+      const cards = isShuffled ? shuffledCards : getCardsForSubject(currentSubjectId);
+      const card = cards[currentStudyIndex];
+      
+      const btn = document.getElementById('needPracticeBtn');
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<span class="loading-spinner"></span>';
+      btn.disabled = true;
+
+      const updatedCard = { ...card, mastery: 'need-practice' };
+      const result = await window.dataSdk.update(updatedCard);
+
+      if (result.isOk) {
+        showToast('Marked for practice');
+      } else {
+        showToast('Failed to update card');
+      }
+
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
+    });
+
+    document.getElementById('gotItBtn').addEventListener('click', async () => {
+      const cards = isShuffled ? shuffledCards : getCardsForSubject(currentSubjectId);
+      const card = cards[currentStudyIndex];
+      
+      const btn = document.getElementById('gotItBtn');
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<span class="loading-spinner"></span>';
+      btn.disabled = true;
+
+      const updatedCard = { ...card, mastery: 'got-it' };
+      const result = await window.dataSdk.update(updatedCard);
+
+      if (result.isOk) {
+        showToast('Great job! 🎉');
+      } else {
+        showToast('Failed to update card');
+      }
+
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
+    });
+
+    function backToCards() {
+      document.getElementById('studyView').classList.remove('active');
+      document.getElementById('cardsView').classList.add('active');
+      
+      const subject = getSubjects().find(s => s.id === currentSubjectId);
+      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="backToSubjects()">Subjects</span> / ${subject.name}`;
+    }
+
+    document.getElementById('backToCardsBtn').addEventListener('click', backToCards);
+
+    document.getElementById('flashcard').addEventListener('click', () => {
+      isFlipped = !isFlipped;
+      document.getElementById('flashcard').classList.toggle('flipped');
+    });
+
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      if (currentStudyIndex > 0) {
+        currentStudyIndex--;
+        isFlipped = false;
+        document.getElementById('flashcard').classList.remove('flipped');
+        updateStudyView();
+      }
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      const cards = isShuffled ? shuffledCards : getCardsForSubject(currentSubjectId);
+      if (currentStudyIndex < cards.length - 1) {
+        currentStudyIndex++;
+        isFlipped = false;
+        document.getElementById('flashcard').classList.remove('flipped');
+        updateStudyView();
+      } else {
+        backToCards();
+        showToast('Study session complete! 🎉');
+      }
+    });
+
+    async function init() {
+      const initResult = await window.dataSdk.init(dataHandler);
+      if (!initResult.isOk) {
+        showToast('Failed to initialize app');
+        return;
+      }
+
+      if (window.elementSdk) {
+        window.elementSdk.init({
+          defaultConfig,
+          onConfigChange,
+          mapToCapabilities: (config) => ({
+            recolorables: [
+              {
+                get: () => config.background_color || defaultConfig.background_color,
+                set: (value) => {
+                  config.background_color = value;
+                  window.elementSdk.setConfig({ background_color: value });
+                }
+              },
+              {
+                get: () => config.surface_color || defaultConfig.surface_color,
+                set: (value) => {
+                  config.surface_color = value;
+                  window.elementSdk.setConfig({ surface_color: value });
+                }
+              },
+              {
+                get: () => config.text_color || defaultConfig.text_color,
+                set: (value) => {
+                  config.text_color = value;
+                  window.elementSdk.setConfig({ text_color: value });
+                }
+              },
+              {
+                get: () => config.primary_action_color || defaultConfig.primary_action_color,
+                set: (value) => {
+                  config.primary_action_color = value;
+                  window.elementSdk.setConfig({ primary_action_color: value });
+                }
+              },
+              {
+                get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
+                set: (value) => {
+                  config.secondary_action_color = value;
+                  window.elementSdk.setConfig({ secondary_action_color: value });
+                }
+              }
+            ],
+            borderables: [],
+            fontEditable: {
+              get: () => config.font_family || defaultConfig.font_family,
+              set: (value) => {
+                config.font_family = value;
+                window.elementSdk.setConfig({ font_family: value });
+              }
+            },
+            fontSizeable: {
+              get: () => config.font_size || defaultConfig.font_size,
+              set: (value) => {
+                config.font_size = value;
+                window.elementSdk.setConfig({ font_size: value });
+              }
+            }
+          }),
+          mapToEditPanelValues: (config) => new Map([
+            ["app_title", config.app_title || defaultConfig.app_title],
+            ["add_subject_text", config.add_subject_text || defaultConfig.add_subject_text],
+            ["study_button_text", config.study_button_text || defaultConfig.study_button_text]
+          ])
+        });
+
+        await onConfigChange(window.elementSdk.config);
+      } else {
+        await onConfigChange(defaultConfig);
+      }
+    }
+
+    init();
+  </script>
+ </body>
+</html>
