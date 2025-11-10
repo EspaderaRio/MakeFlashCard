@@ -69,11 +69,12 @@ window.aiAssistantSDK = {
   // Call backend API for OpenAI response
   async askOpenAI(message) {
     try {
-      const res = await fetch("https://make-flash-card-b8tb6pycq-rio-espaderas-projects.vercel.app/api/ask", {
+      const res = await fetch("/api/ask", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ message }),
 });
+
 
 
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
