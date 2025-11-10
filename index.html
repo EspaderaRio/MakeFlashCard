@@ -119,6 +119,114 @@ window.elementSDK = {
 };
 
   </script>
+  <script>
+   // ===================== MakeFlashCard App Init ===================== //
+
+async function initApp() {
+  try {
+    // --- Initialize data SDK ---
+    if (!window.dataSdk || typeof window.dataSdk.init !== "function") {
+      console.error("dataSdk not loaded or init not found!");
+      return;
+    }
+
+    const initResult = await window.dataSdk.init(dataHandler);
+    if (!initResult.isOk) {
+      showToast("Failed to initialize app");
+      return;
+    }
+
+    // --- Initialize element SDK if available ---
+    if (window.elementSdk && typeof window.elementSdk.init === "function") {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities: (config) => ({
+          recolorables: [
+            {
+              get: () => config.background_color || defaultConfig.background_color,
+              set: (value) => {
+                config.background_color = value;
+                window.elementSdk.setConfig({ background_color: value });
+              },
+            },
+            {
+              get: () => config.surface_color || defaultConfig.surface_color,
+              set: (value) => {
+                config.surface_color = value;
+                window.elementSdk.setConfig({ surface_color: value });
+              },
+            },
+            {
+              get: () => config.text_color || defaultConfig.text_color,
+              set: (value) => {
+                config.text_color = value;
+                window.elementSdk.setConfig({ text_color: value });
+              },
+            },
+            {
+              get: () => config.primary_action_color || defaultConfig.primary_action_color,
+              set: (value) => {
+                config.primary_action_color = value;
+                window.elementSdk.setConfig({ primary_action_color: value });
+              },
+            },
+            {
+              get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
+              set: (value) => {
+                config.secondary_action_color = value;
+                window.elementSdk.setConfig({ secondary_action_color: value });
+              },
+            },
+          ],
+          borderables: [],
+          fontEditable: {
+            get: () => config.font_family || defaultConfig.font_family,
+            set: (value) => {
+              config.font_family = value;
+              window.elementSdk.setConfig({ font_family: value });
+            },
+          },
+          fontSizeable: {
+            get: () => config.font_size || defaultConfig.font_size,
+            set: (value) => {
+              config.font_size = value;
+              window.elementSdk.setConfig({ font_size: value });
+            },
+          },
+        }),
+        mapToEditPanelValues: (config) =>
+          new Map([
+            ["app_title", config.app_title || defaultConfig.app_title],
+            ["add_subject_text", config.add_subject_text || defaultConfig.add_subject_text],
+            ["study_button_text", config.study_button_text || defaultConfig.study_button_text],
+          ]),
+      });
+
+      await onConfigChange(window.elementSdk.config);
+    } else {
+      await onConfigChange(defaultConfig);
+    }
+
+    console.log("✅ MakeFlashCard initialized successfully!");
+  } catch (err) {
+    console.error("Error initializing MakeFlashCard:", err);
+    showToast("Initialization error. Check console.");
+  }
+}
+
+// ===================== Wait for DOM + SDKs ===================== //
+
+window.addEventListener("DOMContentLoaded", () => {
+  const interval = setInterval(() => {
+    if (window.dataSdk && typeof window.dataSdk.init === "function") {
+      clearInterval(interval);
+      initApp();
+    }
+  }, 50);
+});
+
+  </script>
   <script src="ai_assistant.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
