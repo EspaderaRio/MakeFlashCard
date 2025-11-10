@@ -10,11 +10,12 @@
 window.dataSDK = {
   SAVE_KEY: "makeflashcard_save",
  
- init(handler) {
+  init(handler) {
     console.log("[dataSDK] init called");
-    // Optional: call handler with existing state
     const state = this.load() || {};
-    if (handler) handler(state);
+    if (typeof handler === "function") {
+      handler(state);
+    }
     return Promise.resolve({ isOk: true });
   },
 
