@@ -77,6 +77,7 @@ window.aiAssistantSDK = {
 
 
 
+
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
 
       const data = await res.json();
