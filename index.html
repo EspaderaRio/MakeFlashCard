@@ -4,8 +4,121 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Flashcards</title>
-  <script src="/_sdk/data_sdk.js"></script>
-  <script src="/_sdk/element_sdk.js"></script>
+  <script>
+   // ===================== DATA SDK (GLOBAL) ===================== //
+
+window.dataSDK = {
+  SAVE_KEY: "makeflashcard_save",
+
+  save(state) {
+    try {
+      localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
+      console.log("[dataSDK] Saved state:", state);
+    } catch (err) {
+      console.error("[dataSDK] Save failed:", err);
+    }
+  },
+
+  load() {
+    const raw = localStorage.getItem(this.SAVE_KEY);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      console.log("[dataSDK] Loaded state:", parsed);
+      return parsed;
+    } catch (err) {
+      console.error("[dataSDK] Load failed:", err);
+      return null;
+    }
+  },
+
+  clear() {
+    localStorage.removeItem(this.SAVE_KEY);
+    console.log("[dataSDK] Save data cleared.");
+  },
+
+  export() {
+    const data = localStorage.getItem(this.SAVE_KEY);
+    const blob = new Blob([data || "{}"], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "flashcard_save.json";
+    a.click();
+  },
+
+  import(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        localStorage.setItem(this.SAVE_KEY, e.target.result);
+        alert("✅ Save imported!");
+      } catch (err) {
+        console.error("[dataSDK] Import failed:", err);
+      }
+    };
+    reader.readAsText(file);
+  }
+};
+
+  </script>
+  <script>
+   // ===================== ELEMENT SDK (GLOBAL) ===================== //
+
+window.elementSDK = {
+  createButton(text, onClick, options = {}) {
+    const btn = document.createElement("button");
+    btn.textContent = text;
+    btn.className = options.className || "btn-primary";
+    btn.style.margin = options.margin || "4px";
+    btn.onclick = onClick;
+    return btn;
+  },
+
+  showModal(title, content) {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.style.cssText = `
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    `;
+
+    const box = document.createElement("div");
+    box.className = "modal-box";
+    box.style.cssText = `
+      background: #fff; padding: 20px; border-radius: 10px;
+      width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    `;
+    box.innerHTML = `
+      <h3>${title}</h3>
+      <div style="margin-top:10px;">${content}</div>
+      <button id="closeModalBtn" style="margin-top:10px;">Close</button>
+    `;
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    document.getElementById("closeModalBtn").onclick = () => overlay.remove();
+  },
+
+  toast(message, duration = 2000) {
+    const div = document.createElement("div");
+    div.textContent = message;
+    div.style.cssText = `
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: #333; color: white; padding: 10px 20px;
+      border-radius: 20px; opacity: 0; transition: opacity 0.3s;
+      z-index: 9999;
+    `;
+    document.body.appendChild(div);
+    setTimeout(() => (div.style.opacity = 1), 50);
+    setTimeout(() => {
+      div.style.opacity = 0;
+      setTimeout(() => div.remove(), 300);
+    }, duration);
+  }
+};
+
+  </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -2317,5 +2430,6 @@
 
     init();
   </script>
+  <script src="ai_assistant.js"></script>
  </body>
 </html>
