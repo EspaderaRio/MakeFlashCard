@@ -9,6 +9,14 @@
 
 window.dataSDK = {
   SAVE_KEY: "makeflashcard_save",
+ 
+ init(handler) {
+    console.log("[dataSDK] init called");
+    // Optional: call handler with existing state
+    const state = this.load() || {};
+    if (handler) handler(state);
+    return Promise.resolve({ isOk: true });
+  },
 
   save(state) {
     try {
@@ -65,6 +73,11 @@ window.dataSDK = {
    // ===================== ELEMENT SDK (GLOBAL) ===================== //
 
 window.elementSDK = {
+  init(config) {
+    console.log("[elementSDK] init called", config);
+    this.config = config || {};
+  },
+ 
   createButton(text, onClick, options = {}) {
     const btn = document.createElement("button");
     btn.textContent = text;
