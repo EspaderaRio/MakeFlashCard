@@ -67,26 +67,23 @@ window.aiAssistantSDK = {
   },
 
   // Call backend API for OpenAI response
-  async askOpenAI(message) {
-    try {
-      const res = await fetch("https://flashcards-backend-git-main-rio-espaderas-projects.vercel.app/api/ask", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ message }),
-});
+async askOpenAI(message) {
+  try {
+    const res = await fetch("https://flashcards-backend-git-main-rio-espaderas-projects.vercel.app/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
 
+    if (!res.ok) throw new Error(`Server responded with ${res.status}`);
 
-
-
-      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-
-      const data = await res.json();
-      return data.reply || "⚠️ No response from AI";
-    } catch (err) {
-      console.error("[aiAssistantSDK] Error:", err);
-      return "⚠️ Error connecting to AI server. Make sure it is running or deployed.";
-    }
+    const data = await res.json();
+    return data.reply || "⚠️ No response from AI";
+  } catch (err) {
+    console.error("[aiAssistantSDK] Error:", err);
+    return "⚠️ Error connecting to AI server. Make sure it is running or deployed.";
   }
+}
 };
 
 // Initialize after DOM loads
