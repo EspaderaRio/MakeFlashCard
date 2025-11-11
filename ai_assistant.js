@@ -95,12 +95,13 @@ window.aiAssistantSDK = {
 // ===================== GLOBAL HELPER FUNCTIONS ===================== //
 
 async function askAI(message) {
-  const res = await fetch(API_URL, {
+  const response = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message }),
   });
-  const data = await res.json();
+
+  const data = await response.json();
   return data.reply;
 }
 
