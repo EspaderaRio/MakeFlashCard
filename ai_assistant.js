@@ -1,9 +1,8 @@
 // ===================== AI ASSISTANT SDK (GLOBAL) ===================== //
 
-const API_URL = 'https://flashcards-backend-git-main-rio-espaderas-projects.vercel.app/api/ask';
+const API_URL = "https://flashcards-backend-git-main-rio-espaderas-projects.vercel.app/api/ask";
 
 window.aiAssistantSDK = {
-
   init() {
     const container = document.createElement("div");
     container.id = "ai-assistant";
@@ -19,8 +18,9 @@ window.aiAssistantSDK = {
       font-family: sans-serif;
       display: flex;
       flex-direction: column;
-      z-index: 10000;
+      z-index: 99999;
     `;
+
     container.innerHTML = `
       <div style="background:#007bff; color:#fff; padding:10px; font-weight:bold;">
         💬 Flashcard AI Assistant
@@ -37,9 +37,11 @@ window.aiAssistantSDK = {
     const sendBtn = container.querySelector("#ai-chat-send");
 
     sendBtn.addEventListener("click", () => this.sendMessage());
-    input.addEventListener("keydown", e => { if (e.key === "Enter") this.sendMessage(); });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") this.sendMessage();
+    });
 
-    this.appendMessage("AI", "👋 Hi there! I'm your Flashcard Assistant. I can help you create questions and answers, explain topics, or give flashcard ideas. What would you like to do?");
+    this.appendMessage("AI", "👋 Hi! I'm your Flashcard Assistant. Ask me for study tips, flashcard ideas, or explanations.");
   },
 
   appendMessage(sender, text) {
@@ -58,111 +60,70 @@ window.aiAssistantSDK = {
 
     this.appendMessage("You", message);
     input.value = "";
-
-    // Show loading message
     this.appendMessage("AI", "Thinking...");
 
     try {
       const reply = await this.askOpenAI(message);
-      // Remove "Thinking..." message
       const out = document.getElementById("ai-chat-output");
       out.removeChild(out.lastChild);
       this.appendMessage("AI", reply);
     } catch (error) {
-      // Remove "Thinking..." message
       const out = document.getElementById("ai-chat-output");
       out.removeChild(out.lastChild);
-      this.appendMessage("AI", "❌ Sorry, I encountered an error. Please try again.");
-      console.error('AI Error:', error);
+      this.appendMessage("AI", "❌ Error. Please try again later.");
+      console.error("AI Error:", error);
     }
   },
 
   async askOpenAI(message) {
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.reply;
-
-    } catch (error) {
-      console.error('AI Assistant Error:', error);
-      throw error;
-    }
-  }
-};
-
-// ===================== HELPER FUNCTIONS ===================== //
-
-async function askAI(message) {
-  try {
     const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const err = await response.json();
+      throw new Error(err.error || `HTTP ${response.status}`);
     }
 
     const data = await response.json();
     return data.reply;
+  },
+};
 
-  } catch (error) {
-    console.error('AI Assistant Error:', error);
-    throw error;
-  }
+// ===================== GLOBAL HELPER FUNCTIONS ===================== //
+
+async function askAI(message) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+  const data = await res.json();
+  return data.reply;
 }
 
 async function generateFlashcardSuggestions(topic) {
-  const message = `Generate 3 flashcard ideas for the topic: "${topic}". For each flashcard, provide a question and answer. Format as:
+  const message = `Generate 3 flashcards about "${topic}". Format:
 Q1: [question]
 A1: [answer]
 Q2: [question]
 A2: [answer]
 Q3: [question]
 A3: [answer]`;
-
   return await askAI(message);
 }
 
 async function explainConcept(concept) {
-  const message = `Explain this concept in simple terms: "${concept}"`;
-  return await askAI(message);
+  return await askAI(`Explain this concept simply: "${concept}"`);
 }
 
 async function getStudyTips(subject) {
-  const message = `Provide 3 effective study tips for learning: "${subject}"`;
-  return await askAI(message);
+  return await askAI(`Give 3 effective study tips for learning: "${subject}"`);
 }
 
-// Expose helper functions globally
-if (typeof window !== 'undefined') {
-  window.AIAssistant = {
-    askAI,
-    generateFlashcardSuggestions,
-    explainConcept,
-    getStudyTips
-  };
+if (typeof window !== "undefined") {
+  window.AIAssistant = { askAI, generateFlashcardSuggestions, explainConcept, getStudyTips };
+  window.addEventListener("DOMContentLoaded", () => window.aiAssistantSDK?.init());
 }
-
-// Auto-initialize the chat widget when page loads
-window.addEventListener("DOMContentLoaded", () => {
-  if (window.aiAssistantSDK) {
-    window.aiAssistantSDK.init();
-  }
-});
