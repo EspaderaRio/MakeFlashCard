@@ -6,11 +6,9 @@
   <title>Smart Flashcards</title>
 <script>
 // ===================== DATA SDK (GLOBAL) ===================== //
-window.dataSDK.create = window.dataSDK.addSubject;
 
 window.dataSDK = {
     SAVE_KEY: "makeflashcard_save",
- 
 
     // Initialize the SDK (optional handler)
     init(handler) {
@@ -25,7 +23,7 @@ window.dataSDK = {
     // Load full state from localStorage
     load() {
         const raw = localStorage.getItem(this.SAVE_KEY);
-        if (!raw) return { subjects: [] }; // default empty state
+        if (!raw) return { subjects: [] };
         try {
             return JSON.parse(raw);
         } catch {
@@ -43,16 +41,13 @@ window.dataSDK = {
         }
     },
 
-    // Get all subjects
     getSubjects() {
         return this.load().subjects;
     },
 
-    // Add a new subject
     addSubject(name) {
         if (!name) return false;
         const state = this.load();
-        // Check for duplicate
         if (state.subjects.some(s => s.name.toLowerCase() === name.toLowerCase())) {
             console.warn("Subject already exists:", name);
             return false;
@@ -62,20 +57,17 @@ window.dataSDK = {
         return true;
     },
 
-    // Remove a subject by name
     removeSubject(name) {
         let state = this.load();
         state.subjects = state.subjects.filter(s => s.name !== name);
         this.save(state);
     },
 
-    // Get cards of a subject
     getCards(subjectName) {
         const subject = this.getSubjects().find(s => s.name === subjectName);
         return subject ? subject.cards : [];
     },
 
-    // Add a card to a subject
     addCard(subjectName, question, answer, options = {}) {
         if (!question || !answer) return false;
         const state = this.load();
@@ -89,7 +81,6 @@ window.dataSDK = {
         return true;
     },
 
-    // Remove a card from a subject by index
     removeCard(subjectName, index) {
         const state = this.load();
         const subject = state.subjects.find(s => s.name === subjectName);
@@ -99,14 +90,15 @@ window.dataSDK = {
         return true;
     },
 
-    // Clear all data (optional)
     clearAll() {
         localStorage.removeItem(this.SAVE_KEY);
     }
 };
+
+// --- Create alias AFTER defining the SDK ---
+window.dataSDK.create = window.dataSDK.addSubject;
 </script>
-
-
+  
   <script>
    // ===================== ELEMENT SDK (GLOBAL) ===================== //
 
