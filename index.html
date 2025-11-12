@@ -4,45 +4,106 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Flashcards</title>
- <script>
+<script>
+// ===================== DATA SDK (GLOBAL) ===================== //
+
 window.dataSDK = {
-  SAVE_KEY: "flashcard_save",
+    SAVE_KEY: "makeflashcard_save",
 
-  save(state) {
-    localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
-  },
+    // Initialize the SDK (optional handler)
+    init(handler) {
+        this.handler = handler || null;
+        // Ensure default state exists
+        const state = this.load();
+        if (!state.subjects) state.subjects = [];
+        this.save(state);
+        return Promise.resolve({ isOk: true });
+    },
 
-  load() {
-    const raw = localStorage.getItem(this.SAVE_KEY);
-    if (!raw) return [];
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return [];
+    // Load full state from localStorage
+    load() {
+        const raw = localStorage.getItem(this.SAVE_KEY);
+        if (!raw) return { subjects: [] }; // default empty state
+        try {
+            return JSON.parse(raw);
+        } catch {
+            console.warn("Failed to parse saved data. Resetting.");
+            return { subjects: [] };
+        }
+    },
+
+    // Save full state to localStorage
+    save(state) {
+        try {
+            localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
+        } catch (e) {
+            console.error("Failed to save data:", e);
+        }
+    },
+
+    // Get all subjects
+    getSubjects() {
+        return this.load().subjects;
+    },
+
+    // Add a new subject
+    addSubject(name) {
+        if (!name) return false;
+        const state = this.load();
+        // Check for duplicate
+        if (state.subjects.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+            console.warn("Subject already exists:", name);
+            return false;
+        }
+        state.subjects.push({ name, cards: [] });
+        this.save(state);
+        return true;
+    },
+
+    // Remove a subject by name
+    removeSubject(name) {
+        let state = this.load();
+        state.subjects = state.subjects.filter(s => s.name !== name);
+        this.save(state);
+    },
+
+    // Get cards of a subject
+    getCards(subjectName) {
+        const subject = this.getSubjects().find(s => s.name === subjectName);
+        return subject ? subject.cards : [];
+    },
+
+    // Add a card to a subject
+    addCard(subjectName, question, answer, options = {}) {
+        if (!question || !answer) return false;
+        const state = this.load();
+        const subject = state.subjects.find(s => s.name === subjectName);
+        if (!subject) {
+            console.warn("Subject not found:", subjectName);
+            return false;
+        }
+        subject.cards.push({ question, answer, ...options });
+        this.save(state);
+        return true;
+    },
+
+    // Remove a card from a subject by index
+    removeCard(subjectName, index) {
+        const state = this.load();
+        const subject = state.subjects.find(s => s.name === subjectName);
+        if (!subject || index < 0 || index >= subject.cards.length) return false;
+        subject.cards.splice(index, 1);
+        this.save(state);
+        return true;
+    },
+
+    // Clear all data (optional)
+    clearAll() {
+        localStorage.removeItem(this.SAVE_KEY);
     }
-  },
-
-  create(item) {
-    const data = this.load();
-    data.push(item);
-    this.save(data);
-    return item;
-  },
-
-  delete(index) {
-    const data = this.load();
-    data.splice(index, 1);
-    this.save(data);
-  },
-
-  // ✅ Add init method
-  init(handler) {
-    console.log("[dataSDK] initialized with handler:", handler);
-    this.handler = handler;
-    return Promise.resolve({ isOk: true });
-  }
 };
 </script>
+
 
   <script>
    // ===================== ELEMENT SDK (GLOBAL) ===================== //
