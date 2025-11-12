@@ -1,24 +1,48 @@
-import OpenAI from "openai";
+const input = document.getElementById("ai-chat-input");
+const sendBtn = document.getElementById("ai-chat-send");
+const output = document.getElementById("ai-chat-output");
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+async function sendMessage() {
+  const message = input.value.trim();
+  if (!message) return;
+  appendMessage("You", message);
+  input.value = "";
 
-  const { message } = req.body || {};
-  if (!message) return res.status(400).json({ error: "Missing message" });
+  appendMessage("AI", "Thinking...");
 
   try {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: message }],
+    const res = await fetch("/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }) // must be an object with 'message'
     });
 
-    return res.status(200).json({ reply: completion.choices[0].message.content });
-  } catch (error) {
-    console.error("API error:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    removeLastMessage();
+    appendMessage("AI", data.reply);
+  } catch (err) {
+    removeLastMessage();
+    appendMessage("AI", "❌ Error. Please try again.");
+    console.error(err);
   }
 }
+
+function appendMessage(sender, text) {
+  const div = document.createElement("div");
+  div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+  output.appendChild(div);
+  output.scrollTop = output.scrollHeight;
+}
+
+function removeLastMessage() {
+  output.removeChild(output.lastChild);
+}
+
+sendBtn.addEventListener("click", sendMessage);
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter") sendMessage();
+});
