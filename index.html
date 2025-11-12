@@ -46,16 +46,25 @@ window.dataSDK = {
     },
 
     addSubject(name) {
-        if (!name) return false;
-        const state = this.load();
-        if (state.subjects.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-            console.warn("Subject already exists:", name);
-            return false;
-        }
-        state.subjects.push({ name, cards: [] });
-        this.save(state);
-        return true;
-    },
+    if (!name) return false;
+    const state = this.load();
+
+    // Ensure subjects is a valid array
+    if (!Array.isArray(state.subjects)) state.subjects = [];
+
+    // Filter out invalid subjects
+    state.subjects = state.subjects.filter(s => s && typeof s.name === "string");
+
+    // Check for duplicates
+    if (state.subjects.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+        console.warn("Subject already exists:", name);
+        return false;
+    }
+
+    state.subjects.push({ name, cards: [] });
+    this.save(state);
+    return true;
+},
 
     removeSubject(name) {
         let state = this.load();
