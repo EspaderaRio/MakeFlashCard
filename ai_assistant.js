@@ -1,9 +1,15 @@
 // ===================== AI ASSISTANT SDK (GLOBAL) ===================== //
 
-const API_URL = "https://flashcards-backend-git-main-rio-espaderas-projects.vercel.app/api/ask";
+// ✅ Define API_URL only if it hasn't been defined yet
+if (!window.API_URL) {
+  window.API_URL = "https://flashcards-backend-git-main-rio-espaderas-projects.vercel.app/api/ask";
+}
 
 window.aiAssistantSDK = {
   init() {
+    // Avoid duplicating the assistant if it's already added
+    if (document.getElementById("ai-assistant")) return;
+
     const container = document.createElement("div");
     container.id = "ai-assistant";
     container.style.cssText = `
@@ -76,14 +82,14 @@ window.aiAssistantSDK = {
   },
 
   async askOpenAI(message) {
-    const response = await fetch(API_URL, {
+    const response = await fetch(window.API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message }),
     });
 
     if (!response.ok) {
-      const err = await response.json();
+      const err = await response.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${response.status}`);
     }
 
@@ -95,7 +101,7 @@ window.aiAssistantSDK = {
 // ===================== GLOBAL HELPER FUNCTIONS ===================== //
 
 async function askAI(message) {
-  const response = await fetch(API_URL, {
+  const response = await fetch(window.API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message }),
