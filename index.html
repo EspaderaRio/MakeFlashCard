@@ -4,44 +4,46 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Flashcards</title>
-  <script>
-   // ===================== DATA SDK =====================
+ <script>
 window.dataSDK = {
-  SAVE_KEY: "lifesim3_save",
+  SAVE_KEY: "flashcard_save",
 
-  // Save state
   save(state) {
     localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
   },
 
-  // Load state
   load() {
     const raw = localStorage.getItem(this.SAVE_KEY);
-    if (!raw) return null;
+    if (!raw) return [];
     try {
       return JSON.parse(raw);
     } catch {
-      return null;
+      return [];
     }
   },
 
-  // Create a new flashcard or object
   create(item) {
-    const data = this.load() || [];
+    const data = this.load();
     data.push(item);
     this.save(data);
     return item;
   },
 
-  // Optional: delete item by index
   delete(index) {
-    const data = this.load() || [];
+    const data = this.load();
     data.splice(index, 1);
     this.save(data);
+  },
+
+  // ✅ Add init method
+  init(handler) {
+    console.log("[dataSDK] initialized with handler:", handler);
+    this.handler = handler;
+    return Promise.resolve({ isOk: true });
   }
 };
+</script>
 
-  </script>
   <script>
    // ===================== ELEMENT SDK (GLOBAL) ===================== //
 
