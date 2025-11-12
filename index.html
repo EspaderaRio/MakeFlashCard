@@ -6,9 +6,11 @@
   <title>Smart Flashcards</title>
 <script>
 // ===================== DATA SDK (GLOBAL) ===================== //
+window.dataSDK.create = window.dataSDK.addSubject;
 
 window.dataSDK = {
     SAVE_KEY: "makeflashcard_save",
+ 
 
     // Initialize the SDK (optional handler)
     init(handler) {
