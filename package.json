@@ -1,0 +1,14 @@
+{
+  "name": "flashcards-app",
+  "version": "1.0.0",
+  "description": "AI-powered flashcard assistant (frontend + backend)",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev",
+    "build": "vercel build"
+  },
+  "dependencies": {
+    "openai": "^4.0.0"
+  }
+}
