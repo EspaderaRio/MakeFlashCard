@@ -10,61 +10,46 @@
 window.dataSDK = {
     SAVE_KEY: "makeflashcard_save",
 
-    // Initialize the SDK (optional handler)
     init(handler) {
         this.handler = handler || null;
-        // Ensure default state exists
         const state = this.load();
         if (!state.subjects) state.subjects = [];
         this.save(state);
         return Promise.resolve({ isOk: true });
     },
 
-    // Load full state from localStorage
     load() {
         const raw = localStorage.getItem(this.SAVE_KEY);
         if (!raw) return { subjects: [] };
-        try {
-            return JSON.parse(raw);
-        } catch {
-            console.warn("Failed to parse saved data. Resetting.");
-            return { subjects: [] };
+        try { return JSON.parse(raw); } 
+        catch { 
+            console.warn("Failed to parse saved data. Resetting."); 
+            return { subjects: [] }; 
         }
     },
 
-    // Save full state to localStorage
     save(state) {
-        try {
-            localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
-        } catch (e) {
-            console.error("Failed to save data:", e);
-        }
+        try { localStorage.setItem(this.SAVE_KEY, JSON.stringify(state)); } 
+        catch (e) { console.error("Failed to save data:", e); }
     },
 
-    getSubjects() {
-        return this.load().subjects;
-    },
+    getSubjects() { return this.load().subjects; },
 
     addSubject(name) {
-    if (!name) return false;
-    const state = this.load();
-
-    // Ensure subjects is a valid array
-    if (!Array.isArray(state.subjects)) state.subjects = [];
-
-    // Filter out invalid subjects
-    state.subjects = state.subjects.filter(s => s && typeof s.name === "string");
-
-    // Check for duplicates
-    if (state.subjects.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-        console.warn("Subject already exists:", name);
-        return false;
-    }
-
-    state.subjects.push({ name, cards: [] });
-    this.save(state);
-    return true;
-},
+        if (!name || typeof name !== "string") return false;
+        const state = this.load();
+        if (!Array.isArray(state.subjects)) state.subjects = [];
+        state.subjects = state.subjects.filter(s => s && typeof s.name === "string");
+        const trimmedName = name.trim();
+        if (!trimmedName) return false;
+        if (state.subjects.some(s => s.name.toLowerCase() === trimmedName.toLowerCase())) {
+            console.warn("Subject already exists:", trimmedName);
+            return false;
+        }
+        state.subjects.push({ name: trimmedName, cards: [] });
+        this.save(state);
+        return true;
+    },
 
     removeSubject(name) {
         let state = this.load();
@@ -81,10 +66,7 @@ window.dataSDK = {
         if (!question || !answer) return false;
         const state = this.load();
         const subject = state.subjects.find(s => s.name === subjectName);
-        if (!subject) {
-            console.warn("Subject not found:", subjectName);
-            return false;
-        }
+        if (!subject) { console.warn("Subject not found:", subjectName); return false; }
         subject.cards.push({ question, answer, ...options });
         this.save(state);
         return true;
@@ -99,14 +81,16 @@ window.dataSDK = {
         return true;
     },
 
-    clearAll() {
-        localStorage.removeItem(this.SAVE_KEY);
-    }
+    clearAll() { localStorage.removeItem(this.SAVE_KEY); }
 };
 
-// --- Create alias AFTER defining the SDK ---
-window.dataSDK.create = window.dataSDK.addSubject;
+// --- Async wrapper so await window.dataSDK.create() works ---
+window.dataSDK.create = async function(name) {
+    const success = window.dataSDK.addSubject(name);
+    return { isOk: success };
+};
 </script>
+
   
   <script>
    // ===================== ELEMENT SDK (GLOBAL) ===================== //
