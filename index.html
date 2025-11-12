@@ -5,67 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Flashcards</title>
   <script>
-   // ===================== DATA SDK (GLOBAL) ===================== //
-
+   // ===================== DATA SDK =====================
 window.dataSDK = {
-  SAVE_KEY: "makeflashcard_save",
- 
-  init(handler) {
-    console.log("[dataSDK] init called");
-    const state = this.load() || {};
-    if (typeof handler === "function") {
-      handler(state);
-    }
-    return Promise.resolve({ isOk: true });
-  },
+  SAVE_KEY: "lifesim3_save",
 
+  // Save state
   save(state) {
-    try {
-      localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
-      console.log("[dataSDK] Saved state:", state);
-    } catch (err) {
-      console.error("[dataSDK] Save failed:", err);
-    }
+    localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
   },
 
+  // Load state
   load() {
     const raw = localStorage.getItem(this.SAVE_KEY);
     if (!raw) return null;
     try {
-      const parsed = JSON.parse(raw);
-      console.log("[dataSDK] Loaded state:", parsed);
-      return parsed;
-    } catch (err) {
-      console.error("[dataSDK] Load failed:", err);
+      return JSON.parse(raw);
+    } catch {
       return null;
     }
   },
 
-  clear() {
-    localStorage.removeItem(this.SAVE_KEY);
-    console.log("[dataSDK] Save data cleared.");
+  // Create a new flashcard or object
+  create(item) {
+    const data = this.load() || [];
+    data.push(item);
+    this.save(data);
+    return item;
   },
 
-  export() {
-    const data = localStorage.getItem(this.SAVE_KEY);
-    const blob = new Blob([data || "{}"], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "flashcard_save.json";
-    a.click();
-  },
-
-  import(file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        localStorage.setItem(this.SAVE_KEY, e.target.result);
-        alert("✅ Save imported!");
-      } catch (err) {
-        console.error("[dataSDK] Import failed:", err);
-      }
-    };
-    reader.readAsText(file);
+  // Optional: delete item by index
+  delete(index) {
+    const data = this.load() || [];
+    data.splice(index, 1);
+    this.save(data);
   }
 };
 
