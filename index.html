@@ -4,291 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Flashcards</title>
-<script>
-// ===================== DATA SDK (GLOBAL) ===================== //
-
-window.dataSDK = {
-  SAVE_KEY: "makeflashcard_save",
-
-  // --- Initialize SDK ---
-  async init(handler) {
-    try {
-      console.log("🔹 dataSDK initializing...");
-      const state = this.load();
-
-      // Ensure default structure
-      if (!state.records) state.records = [];
-
-      // Save to localStorage if missing
-      this.save(state);
-
-      // Optional: pass back handler
-      this.handler = handler || null;
-
-      console.log("✅ dataSDK ready with", state.records.length, "records");
-      return { isOk: true };
-    } catch (err) {
-      console.error("❌ dataSDK init error:", err);
-      return { isOk: false, error: err };
-    }
-  },
-
-  // --- Load saved data ---
-  load() {
-    const raw = localStorage.getItem(this.SAVE_KEY);
-    if (!raw) return { records: [] };
-
-    try {
-      const parsed = JSON.parse(raw);
-      if (!parsed.records) parsed.records = [];
-      return parsed;
-    } catch {
-      return { records: [] };
-    }
-  },
-
-  // --- Save current state ---
-  save(state) {
-    localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
-  },
-
-  // --- Return all records (subjects + cards) ---
-  getAll() {
-    const state = this.load();
-    return state.records || [];
-  },
-
-  // --- Create new record (subject or card) ---
-  async create(record) {
-    try {
-      const state = this.load();
-      if (!state.records) state.records = [];
-
-      record.id = record.id || crypto.randomUUID();
-      record.createdAt = record.createdAt || new Date().toISOString();
-
-      state.records.push(record);
-      this.save(state);
-
-      return { isOk: true, record };
-    } catch (err) {
-      console.error("❌ Failed to create record:", err);
-      return { isOk: false, error: err };
-    }
-  },
-
-  // --- Update an existing record by ID ---
-  async update(record) {
-    try {
-      const state = this.load();
-      const index = state.records.findIndex(r => r.id === record.id);
-      if (index === -1) return { isOk: false, error: "Record not found" };
-
-      state.records[index] = { ...state.records[index], ...record };
-      this.save(state);
-      return { isOk: true };
-    } catch (err) {
-      console.error("❌ Failed to update record:", err);
-      return { isOk: false, error: err };
-    }
-  },
-
-  // --- Delete a record by ID ---
-  async delete(record) {
-    try {
-      const state = this.load();
-      state.records = (state.records || []).filter(r => r.id !== record.id);
-      this.save(state);
-      return { isOk: true };
-    } catch (err) {
-      console.error("❌ Failed to delete record:", err);
-      return { isOk: false, error: err };
-    }
-  },
-
-  // --- Reset everything (for testing/debugging) ---
-  clearAll() {
-    localStorage.removeItem(this.SAVE_KEY);
-  }
-};
-
-// === Global cache for convenience ===
-window.allRecords = window.dataSDK.getAll();
-
-// === Auto-init log ===
-console.log("✅ dataSDK script loaded:", window.allRecords.length, "records found.");
-</script>
-<script>
-   // ===================== ELEMENT SDK (GLOBAL) ===================== //
-
-window.elementSDK = {
-  init(config) {
-    console.log("[elementSDK] init called", config);
-    this.config = config || {};
-  },
- 
-  createButton(text, onClick, options = {}) {
-    const btn = document.createElement("button");
-    btn.textContent = text;
-    btn.className = options.className || "btn-primary";
-    btn.style.margin = options.margin || "4px";
-    btn.onclick = onClick;
-    return btn;
-  },
-
-  showModal(title, content) {
-    const overlay = document.createElement("div");
-    overlay.className = "modal-overlay";
-    overlay.style.cssText = `
-      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-      display: flex; align-items: center; justify-content: center; z-index: 1000;
-    `;
-
-    const box = document.createElement("div");
-    box.className = "modal-box";
-    box.style.cssText = `
-      background: #fff; padding: 20px; border-radius: 10px;
-      width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    `;
-    box.innerHTML = `
-      <h3>${title}</h3>
-      <div style="margin-top:10px;">${content}</div>
-      <button id="closeModalBtn" style="margin-top:10px;">Close</button>
-    `;
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    document.getElementById("closeModalBtn").onclick = () => overlay.remove();
-  },
-
-  toast(message, duration = 2000) {
-    const div = document.createElement("div");
-    div.textContent = message;
-    div.style.cssText = `
-      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-      background: #333; color: white; padding: 10px 20px;
-      border-radius: 20px; opacity: 0; transition: opacity 0.3s;
-      z-index: 9999;
-    `;
-    document.body.appendChild(div);
-    setTimeout(() => (div.style.opacity = 1), 50);
-    setTimeout(() => {
-      div.style.opacity = 0;
-      setTimeout(() => div.remove(), 300);
-    }, duration);
-  }
-};
-
-  </script>
-  <script>
-   // ===================== MakeFlashCard App Init ===================== //
-
-async function initApp() {
-  try {
-    // --- Initialize data SDK ---
-    if (!window.dataSDK || typeof window.dataSDK.init !== "function") {
-      console.error("dataSDK not loaded or init not found!");
-      return;
-    }
-
-    const initResult = await window.dataSDK.init(dataHandler);
-    if (!initResult.isOk) {
-      showToast("Failed to initialize app");
-      return;
-    }
-
-    // --- Initialize element SDK if available ---
-    if (window.elementSDK && typeof window.elementSDK.init === "function") {
-      window.elementSDK.init({
-        defaultConfig,
-        onConfigChange,
-        mapToCapabilities: (config) => ({
-          recolorables: [
-            {
-              get: () => config.background_color || defaultConfig.background_color,
-              set: (value) => {
-                config.background_color = value;
-                window.elementSDK.setConfig({ background_color: value });
-              },
-            },
-            {
-              get: () => config.surface_color || defaultConfig.surface_color,
-              set: (value) => {
-                config.surface_color = value;
-                window.elementSDK.setConfig({ surface_color: value });
-              },
-            },
-            {
-              get: () => config.text_color || defaultConfig.text_color,
-              set: (value) => {
-                config.text_color = value;
-                window.elementSDK.setConfig({ text_color: value });
-              },
-            },
-            {
-              get: () => config.primary_action_color || defaultConfig.primary_action_color,
-              set: (value) => {
-                config.primary_action_color = value;
-                window.elementSDK.setConfig({ primary_action_color: value });
-              },
-            },
-            {
-              get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
-              set: (value) => {
-                config.secondary_action_color = value;
-                window.elementSDK.setConfig({ secondary_action_color: value });
-              },
-            },
-          ],
-          borderables: [],
-          fontEditable: {
-            get: () => config.font_family || defaultConfig.font_family,
-            set: (value) => {
-              config.font_family = value;
-              window.elementSDK.setConfig({ font_family: value });
-            },
-          },
-          fontSizeable: {
-            get: () => config.font_size || defaultConfig.font_size,
-            set: (value) => {
-              config.font_size = value;
-              window.elementSDK.setConfig({ font_size: value });
-            },
-          },
-        }),
-        mapToEditPanelValues: (config) =>
-          new Map([
-            ["app_title", config.app_title || defaultConfig.app_title],
-            ["add_subject_text", config.add_subject_text || defaultConfig.add_subject_text],
-            ["study_button_text", config.study_button_text || defaultConfig.study_button_text],
-          ]),
-      });
-
-      await onConfigChange(window.elementSDK.config);
-    } else {
-      await onConfigChange(defaultConfig);
-    }
-
-    console.log("✅ MakeFlashCard initialized successfully!");
-  } catch (err) {
-    console.error("Error initializing MakeFlashCard:", err);
-    showToast("Initialization error. Check console.");
-  }
-}
-
-// ===================== Wait for DOM + SDKs ===================== //
-
-window.addEventListener("DOMContentLoaded", () => {
-  const interval = setInterval(() => {
-    if (window.dataSDK && typeof window.dataSDK.init === "function") {
-      clearInterval(interval);
-      initApp();
-    }
-  }, 50);
-});
-
-  </script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -1141,70 +858,9 @@ window.addEventListener("DOMContentLoaded", () => {
       font-size: 16px;
       text-align: center;
     }
-   /* Floating AI Chat Button */
-#open-ai-chat {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: #007bff;
-  color: #fff;
-  font-size: 28px;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* AI Chat Modal */
-#ai-chat {
-  position: fixed;
-  bottom: 90px; /* above the floating button */
-  right: 20px;
-  width: 320px;
-  max-height: 400px;
-  background: white;
-  border-radius: 14px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
-  display: none; /* hidden by default */
-  flex-direction: column;
-  overflow: hidden;
-  z-index: 9999;
-}
-
-#ai-chat-output {
-  flex: 1;
-  padding: 10px;
-  overflow-y: auto;
-  border-bottom: 1px solid #ddd;
-  font-size: 14px;
-}
-
-#ai-chat-input {
-  width: calc(100% - 70px);
-  padding: 8px;
-  border: 1px solid #ccc;
-  outline: none;
-  font-size: 14px;
-}
-
-#ai-chat-send {
-  width: 60px;
-  background: #007bff;
-  color: white;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-}
-
   </style>
   <style>@view-transition { navigation: auto; }</style>
-  <script src="tailwindcss.js" type="text/javascript"></script>
+  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
  </head>
  <body>
   <div class="app-container">
@@ -1408,16 +1064,6 @@ window.addEventListener("DOMContentLoaded", () => {
     </div>
    </div>
   </div>
-<button id="open-ai-chat">💬 AI Chat</button>
-
-  <div id="ai-chat" class="modal">
-    <h1>Flashcard AI Assistant</h1>
-    <div id="ai-chat-output"></div>
-    <input id="ai-chat-input" placeholder="Ask me anything..." />
-    <button id="ai-chat-send">Send</button>
-  </div>
-
-  <script src="./ai_assistant.js"></script>
   <script>
     const defaultConfig = {
       background_color: "#f0f4f8",
@@ -1582,7 +1228,7 @@ window.addEventListener("DOMContentLoaded", () => {
       
       if (settings) {
         const updated = { ...settings, ...updates };
-        await window.dataSDK.update(updated);
+        await window.dataSdk.update(updated);
       } else {
         const newSettings = {
           id: 'settings-1',
@@ -1607,7 +1253,7 @@ window.addEventListener("DOMContentLoaded", () => {
           lastStudyDate: '',
           ...updates
         };
-        await window.dataSDK.create(newSettings);
+        await window.dataSdk.create(newSettings);
       }
     }
 
@@ -1626,7 +1272,7 @@ window.addEventListener("DOMContentLoaded", () => {
           ...existingSession,
           cardsStudied: existingSession.cardsStudied + cardsStudied
         };
-        await window.dataSDK.update(updated);
+        await window.dataSdk.update(updated);
       } else {
         const newSession = {
           id: `session-${Date.now()}`,
@@ -1650,7 +1296,7 @@ window.addEventListener("DOMContentLoaded", () => {
           longestStreak: 0,
           lastStudyDate: ''
         };
-        await window.dataSDK.create(newSession);
+        await window.dataSdk.create(newSession);
       }
 
       await updateStreak();
@@ -1725,7 +1371,7 @@ window.addEventListener("DOMContentLoaded", () => {
       }
 
       const sessions = getStudySessions();
-      const config = window.elementSDK?.config || defaultConfig;
+      const config = window.elementSdk?.config || defaultConfig;
 
       last7Days.forEach(date => {
         const session = sessions.find(s => s.studySessionDate === date);
@@ -1824,8 +1470,6 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderSubjects() {
-     window.allRecords = dataSDK.getAll();
-     
       const subjects = getSubjects();
       const grid = document.getElementById('subjectsGrid');
       const emptyState = document.getElementById('subjectsEmptyState');
@@ -1850,7 +1494,7 @@ window.addEventListener("DOMContentLoaded", () => {
       card.className = 'subject-card';
       card.dataset.subjectId = subject.id;
 
-      const config = window.elementSDK?.config || defaultConfig;
+      const config = window.elementSdk?.config || defaultConfig;
       card.style.background = config.surface_color || defaultConfig.surface_color;
       card.style.color = config.text_color || defaultConfig.text_color;
 
@@ -1967,7 +1611,7 @@ window.addEventListener("DOMContentLoaded", () => {
       item.className = 'flashcard-item';
       item.dataset.cardId = card.id;
 
-      const config = window.elementSDK?.config || defaultConfig;
+      const config = window.elementSdk?.config || defaultConfig;
       item.style.background = config.surface_color || defaultConfig.surface_color;
       item.style.color = config.text_color || defaultConfig.text_color;
 
@@ -2042,10 +1686,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
       const cards = getCardsForSubject(subject.id);
       for (const card of cards) {
-        await window.dataSDK.delete(card);
+        await window.dataSdk.delete(card);
       }
 
-      const result = await window.dataSDK.delete(subject.record);
+      const result = await window.dataSdk.delete(subject.record);
       
       if (result.isOk) {
         showToast('Subject deleted successfully');
@@ -2062,7 +1706,7 @@ window.addEventListener("DOMContentLoaded", () => {
       deleteBtn.innerHTML = '<span class="loading-spinner"></span>';
       deleteBtn.disabled = true;
 
-      const result = await window.dataSDK.delete(card);
+      const result = await window.dataSdk.delete(card);
       
       if (result.isOk) {
         showToast('Card deleted successfully');
@@ -2293,7 +1937,7 @@ window.addEventListener("DOMContentLoaded", () => {
         lastStudyDate: ''
       };
 
-      const result = await window.dataSDK.create(newSubject);
+      const result = await window.dataSdk.create(newSubject);
 
       if (result.isOk) {
         document.getElementById('addSubjectForm').reset();
@@ -2363,7 +2007,7 @@ window.addEventListener("DOMContentLoaded", () => {
         lastStudyDate: ''
       };
 
-      const result = await window.dataSDK.create(newCard);
+      const result = await window.dataSdk.create(newCard);
 
       if (result.isOk) {
         document.getElementById('addCardForm').reset();
@@ -2504,7 +2148,7 @@ window.addEventListener("DOMContentLoaded", () => {
         lastReviewed: now.toISOString(),
         nextReview: nextReview.toISOString()
       };
-      const result = await window.dataSDK.update(updatedCard);
+      const result = await window.dataSdk.update(updatedCard);
 
       if (result.isOk) {
         showToast('Marked for practice');
@@ -2537,7 +2181,7 @@ window.addEventListener("DOMContentLoaded", () => {
         lastReviewed: now.toISOString(),
         nextReview: nextReview.toISOString()
       };
-      const result = await window.dataSDK.update(updatedCard);
+      const result = await window.dataSdk.update(updatedCard);
 
       if (result.isOk) {
         showToast('Great job! 🎉');
@@ -2594,14 +2238,14 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     async function init() {
-      const initResult = await window.dataSDK.init(dataHandler);
+      const initResult = await window.dataSdk.init(dataHandler);
       if (!initResult.isOk) {
         showToast('Failed to initialize app');
         return;
       }
 
-      if (window.elementSDK) {
-        window.elementSDK.init({
+      if (window.elementSdk) {
+        window.elementSdk.init({
           defaultConfig,
           onConfigChange,
           mapToCapabilities: (config) => ({
@@ -2610,35 +2254,35 @@ window.addEventListener("DOMContentLoaded", () => {
                 get: () => config.background_color || defaultConfig.background_color,
                 set: (value) => {
                   config.background_color = value;
-                  window.elementSDK.setConfig({ background_color: value });
+                  window.elementSdk.setConfig({ background_color: value });
                 }
               },
               {
                 get: () => config.surface_color || defaultConfig.surface_color,
                 set: (value) => {
                   config.surface_color = value;
-                  window.elementSDK.setConfig({ surface_color: value });
+                  window.elementSdk.setConfig({ surface_color: value });
                 }
               },
               {
                 get: () => config.text_color || defaultConfig.text_color,
                 set: (value) => {
                   config.text_color = value;
-                  window.elementSDK.setConfig({ text_color: value });
+                  window.elementSdk.setConfig({ text_color: value });
                 }
               },
               {
                 get: () => config.primary_action_color || defaultConfig.primary_action_color,
                 set: (value) => {
                   config.primary_action_color = value;
-                  window.elementSDK.setConfig({ primary_action_color: value });
+                  window.elementSdk.setConfig({ primary_action_color: value });
                 }
               },
               {
                 get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
                 set: (value) => {
                   config.secondary_action_color = value;
-                  window.elementSDK.setConfig({ secondary_action_color: value });
+                  window.elementSdk.setConfig({ secondary_action_color: value });
                 }
               }
             ],
@@ -2647,14 +2291,14 @@ window.addEventListener("DOMContentLoaded", () => {
               get: () => config.font_family || defaultConfig.font_family,
               set: (value) => {
                 config.font_family = value;
-                window.elementSDK.setConfig({ font_family: value });
+                window.elementSdk.setConfig({ font_family: value });
               }
             },
             fontSizeable: {
               get: () => config.font_size || defaultConfig.font_size,
               set: (value) => {
                 config.font_size = value;
-                window.elementSDK.setConfig({ font_size: value });
+                window.elementSdk.setConfig({ font_size: value });
               }
             }
           }),
@@ -2665,7 +2309,7 @@ window.addEventListener("DOMContentLoaded", () => {
           ])
         });
 
-        await onConfigChange(window.elementSDK.config);
+        await onConfigChange(window.elementSdk.config);
       } else {
         await onConfigChange(defaultConfig);
       }
