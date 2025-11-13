@@ -63,6 +63,10 @@ window.dataSdk = {
     this.save(state);
     return newSubject;
   },
+ 
+ create(subjectName) {
+  return this.addSubject(subjectName);
+},
 
   // Delete a subject
   deleteSubject(subjectId) {
@@ -85,6 +89,13 @@ window.dataSdk = {
  <script>
 // ===================== ELEMENT SDK (GLOBAL) ===================== //
 window.elementSdk = {
+ 
+ init() {
+  this.initCreateButton();
+  this.renderSubjects();
+  return Promise.resolve({ isOk: true });
+},
+
   // Render all subjects into the UI
   renderSubjects() {
     const subjects = window.dataSdk.getAll();
@@ -142,8 +153,7 @@ window.elementSdk = {
 </script>
   <script>
 window.addEventListener("DOMContentLoaded", () => {
-  elementSdk.initCreateButton();
-  elementSdk.renderSubjects();
+  elementSdk.init();
 });
 </script>
 
