@@ -932,7 +932,7 @@ aiHeader.addEventListener('click', () => {
 });
 
 // Add message to chat
-function addMessage(text, from='ai') {
+function addMessage(text, from = 'ai') {
   const msg = document.createElement('div');
   msg.textContent = text;
   msg.style.marginBottom = '8px';
@@ -941,6 +941,20 @@ function addMessage(text, from='ai') {
   aiMessages.appendChild(msg);
   aiMessages.scrollTop = aiMessages.scrollHeight;
 }
+
+// Send message function (needed to fix your error)
+async function sendMessage() {
+  const prompt = aiInput.value.trim();
+  if (!prompt) return;
+
+  addMessage(prompt, 'user');
+  aiInput.value = '';
+
+  const answer = await callAI(prompt);
+  if (answer) addMessage(answer, 'ai');
+}
+
+// Call your AI API
 async function callAI(prompt) {
   try {
     const response = await fetch('/api/ask', {
@@ -949,13 +963,14 @@ async function callAI(prompt) {
       body: JSON.stringify({ message: prompt })
     });
     const data = await response.json();
-    return data.answer || '';
+    return data.answer || 'Sorry, no response from AI.';
   } catch (err) {
     console.error(err);
-    return '';
+    return 'Error: Unable to reach AI service.';
   }
 }
 
+// Event listeners for sending
 aiSend.addEventListener('click', sendMessage);
 aiInput.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') sendMessage();
