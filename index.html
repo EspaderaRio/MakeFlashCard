@@ -3,160 +3,161 @@
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Flashcards</title>
- <script>
-// ===================== DATA SDK (GLOBAL) ===================== //
+  <title>Flashcards</title>
+  <script>
+// ===================== DATA SDK (REACTIVE) ===================== //
 window.dataSdk = {
-  SAVE_KEY: "makeflashcard_save",
+  SAVE_KEY: "flashcards_save",
+  handler: null,
+  state: { subjects: [], cards: [] },
 
-  // Load full state (subjects, etc.)
+  save() {
+    localStorage.setItem(this.SAVE_KEY, JSON.stringify(this.state));
+  },
+
   load() {
     const raw = localStorage.getItem(this.SAVE_KEY);
-    if (!raw) {
-      return { subjects: [] };
-    }
+    if (!raw) return { subjects: [], cards: [] };
     try {
       return JSON.parse(raw);
-    } catch (e) {
-      console.error("Failed to parse save data:", e);
-      return { subjects: [] };
+    } catch {
+      return { subjects: [], cards: [] };
     }
   },
 
-  // Save state
-  save(state) {
-    try {
-      localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
-    } catch (e) {
-      console.error("Failed to save:", e);
+  async init(handler) {
+    this.handler = handler || null;
+    this.state = this.load();
+    if (!this.state.subjects) this.state.subjects = [];
+    if (!this.state.cards) this.state.cards = [];
+    this.save();
+
+    this._triggerHandler();
+    return { isOk: true };
+  },
+
+  async create(record) {
+    if (record.type === 'subject') {
+      this.state.subjects.push(record);
+    } else if (record.type === 'card') {
+      this.state.cards.push(record);
+    } else {
+      return { isOk: false, error: { message: 'Invalid type' } };
     }
-  },
- 
- init() {
-  const state = this.load();
-  if (!state.subjects) {
-    state.subjects = [];
-    this.save(state);
-  }
-  return Promise.resolve({ isOk: true });
-},
-
-  // Return all subjects
-  getAll() {
-    const state = this.load();
-    return state.subjects || [];
+    this.save();
+    this._triggerHandler();
+    return { isOk: true };
   },
 
-  // Add new subject
-  addSubject(subjectName) {
-    const state = this.load();
-    const newSubject = {
-      id: "subject-" + Date.now(),
-      type: "subject",
-      subjectId: Date.now().toString(),
-      subjectName,
-      question: "",
-      answer: "",
-      createdAt: new Date().toISOString(),
-    };
-    state.subjects.push(newSubject);
-    this.save(state);
-    return newSubject;
-  },
- 
- create(subjectName) {
-  return this.addSubject(subjectName);
-},
-
-  // Delete a subject
-  deleteSubject(subjectId) {
-    const state = this.load();
-    state.subjects = state.subjects.filter(s => s.subjectId !== subjectId);
-    this.save(state);
-  },
-
-  // Update a subject (e.g. after editing)
-  updateSubject(updated) {
-    const state = this.load();
-    const index = state.subjects.findIndex(s => s.subjectId === updated.subjectId);
-    if (index !== -1) {
-      state.subjects[index] = updated;
-      this.save(state);
+  async update(record) {
+    let updated = false;
+    if (record.type === 'subject') {
+      this.state.subjects = this.state.subjects.map(s => s.id === record.id ? (updated = true, record) : s);
+    } else if (record.type === 'card') {
+      this.state.cards = this.state.cards.map(c => c.id === record.id ? (updated = true, record) : c);
     }
+    if (!updated) return { isOk: false, error: { message: 'Record not found' } };
+    this.save();
+    this._triggerHandler();
+    return { isOk: true };
   },
-};
-</script>
- <script>
-// ===================== ELEMENT SDK (GLOBAL) ===================== //
-window.elementSdk = {
- 
- init() {
-  this.initCreateButton();
-  this.renderSubjects();
-  return Promise.resolve({ isOk: true });
-},
 
-  // Render all subjects into the UI
-  renderSubjects() {
-    const subjects = window.dataSdk.getAll();
-    const container = document.getElementById("subjectsGrid");
-    if (!container) return console.error("No #subject-list container found");
-    container.innerHTML = "";
-
-    if (subjects.length === 0) {
-      container.innerHTML = `<p class="text-gray-500 italic">No subjects yet.</p>`;
-      return;
-    }
-
-    subjects.forEach(subject => {
-      const card = document.createElement("div");
-      card.className =
-        "p-3 border rounded-lg shadow-sm bg-white flex justify-between items-center mb-2";
-
-      card.innerHTML = `
-        <div>
-          <h3 class="font-semibold">${subject.subjectName}</h3>
-          <p class="text-sm text-gray-500">${subject.question || "No question yet"}</p>
-        </div>
-        <button class="bg-red-500 text-white text-sm px-2 py-1 rounded delete-btn">🗑</button>
-      `;
-
-      // Delete button
-      card.querySelector(".delete-btn").addEventListener("click", () => {
-        window.dataSdk.deleteSubject(subject.subjectId);
-        this.renderSubjects();
+  async delete(record) {
+    let deleted = false;
+    if (record.type === 'subject') {
+      this.state.subjects = this.state.subjects.filter(s => {
+        if (s.id === record.id) deleted = true;
+        return s.id !== record.id;
       });
-
-      container.appendChild(card);
-    });
-  },
-
-  // Attach create button handler
-  initCreateButton() {
-    const btn = document.getElementById("addSubjectBtn");
-    const input = document.getElementById("subjectNameInput");
-
-    if (!btn || !input) {
-      console.warn("Missing #addSubjectBtn or #subjectNameInput elements");
-      return;
+      this.state.cards = this.state.cards.filter(c => c.subjectId !== record.subjectId);
+    } else if (record.type === 'card') {
+      this.state.cards = this.state.cards.filter(c => {
+        if (c.id === record.id) deleted = true;
+        return c.id !== record.id;
+      });
     }
-
-    btn.addEventListener("click", () => {
-      const name = input.value.trim();
-      if (!name) return alert("Please enter a subject name!");
-      window.dataSdk.addSubject(name);
-      input.value = "";
-      this.renderSubjects();
-    });
+    if (!deleted) return { isOk: false, error: { message: 'Record not found' } };
+    this.save();
+    this._triggerHandler();
+    return { isOk: true };
   },
+
+  getAll() {
+    return [...this.state.subjects, ...this.state.cards];
+  },
+
+  _triggerHandler() {
+    if (this.handler && this.handler.onDataChanged) {
+      this.handler.onDataChanged(this.getAll());
+    }
+  }
 };
 </script>
-  <script>
-window.addEventListener("DOMContentLoaded", () => {
-  elementSdk.init();
-});
-</script>
+<script>
+// ===================== ELEMENT SDK (LIVE EDITABLE) ===================== //
+window.elementSdk = {
+  config: {},
+  onConfigChange: null,
+  mapToCapabilities: null,
+  mapToEditPanelValues: null,
 
+  init(options = {}) {
+    this.config = { ...options.defaultConfig };
+    this.onConfigChange = options.onConfigChange || null;
+    this.mapToCapabilities = options.mapToCapabilities || null;
+    this.mapToEditPanelValues = options.mapToEditPanelValues || null;
+
+    // Apply initial config
+    if (this.onConfigChange) this.onConfigChange(this.config);
+
+    // Return live setters for recolorables and fonts
+    this._setupLiveEditing();
+  },
+
+  setConfig(newConfig) {
+    this.config = { ...this.config, ...newConfig };
+    if (this.onConfigChange) this.onConfigChange(this.config);
+  },
+
+  _setupLiveEditing() {
+    if (!this.mapToCapabilities) return;
+
+    const caps = this.mapToCapabilities(this.config);
+
+    // Recolorables: attach getters/setters to update live
+    if (caps.recolorables) {
+      caps.recolorables.forEach(item => {
+        const originalSet = item.set;
+        item.set = (value) => {
+          originalSet(value);
+          this.config = { ...this.config }; // ensure config is updated
+          if (this.onConfigChange) this.onConfigChange(this.config);
+        };
+      });
+    }
+
+    // Font family
+    if (caps.fontEditable) {
+      const originalSet = caps.fontEditable.set;
+      caps.fontEditable.set = (value) => {
+        originalSet(value);
+        this.config.font_family = value;
+        if (this.onConfigChange) this.onConfigChange(this.config);
+      };
+    }
+
+    // Font size
+    if (caps.fontSizeable) {
+      const originalSet = caps.fontSizeable.set;
+      caps.fontSizeable.set = (value) => {
+        originalSet(value);
+        this.config.font_size = value;
+        if (this.onConfigChange) this.onConfigChange(this.config);
+      };
+    }
+  }
+};
+</script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -190,7 +191,7 @@ window.addEventListener("DOMContentLoaded", () => {
       text-align: center;
       margin-bottom: 32px;
       width: 100%;
-      max-width: 1200px;
+      max-width: 900px;
     }
 
     .app-title {
@@ -212,7 +213,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     .main-content {
       width: 100%;
-      max-width: 1200px;
+      max-width: 900px;
       flex: 1;
     }
 
@@ -267,53 +268,6 @@ window.addEventListener("DOMContentLoaded", () => {
       border: 2px solid;
     }
 
-    .btn-small {
-      padding: 8px 16px;
-      font-size: 14px;
-      min-width: auto;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 32px;
-    }
-
-    .stat-card {
-      padding: 24px;
-      border-radius: 12px;
-      text-align: center;
-    }
-
-    .stat-value {
-      font-size: 36px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .stat-label {
-      font-size: 14px;
-      opacity: 0.7;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .progress-bar-container {
-      width: 100%;
-      height: 8px;
-      background: rgba(0, 0, 0, 0.1);
-      border-radius: 4px;
-      margin-top: 12px;
-      overflow: hidden;
-    }
-
-    .progress-bar {
-      height: 100%;
-      border-radius: 4px;
-      transition: width 0.3s;
-    }
-
     .subjects-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -351,20 +305,6 @@ window.addEventListener("DOMContentLoaded", () => {
       opacity: 0.7;
     }
 
-    .subject-stats {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin-top: 12px;
-      font-size: 12px;
-    }
-
-    .subject-stat {
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-weight: 600;
-    }
-
     .delete-subject-btn {
       position: absolute;
       top: 12px;
@@ -385,32 +325,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
     .delete-subject-btn:hover {
       transform: scale(1.1);
-    }
-
-    .filters-section {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .search-box {
-      flex: 1;
-      min-width: 200px;
-      padding: 12px 16px;
-      border: 2px solid;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-
-    .filter-select {
-      padding: 12px 16px;
-      border: 2px solid;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-      background: white;
     }
 
     .flashcard-list {
@@ -445,30 +359,6 @@ window.addEventListener("DOMContentLoaded", () => {
     .flashcard-answer {
       font-size: 16px;
       opacity: 0.8;
-      margin-bottom: 8px;
-    }
-
-    .flashcard-meta {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 8px;
-    }
-
-    .tag-badge {
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 600;
-      background: rgba(0, 0, 0, 0.1);
-    }
-
-    .card-image-preview {
-      max-width: 100px;
-      max-height: 60px;
-      border-radius: 6px;
-      margin-top: 8px;
-      object-fit: cover;
     }
 
     .delete-btn {
@@ -532,43 +422,16 @@ window.addEventListener("DOMContentLoaded", () => {
       gap: 24px;
     }
 
-    .study-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-      max-width: 600px;
-      gap: 16px;
-    }
-
     .card-counter {
       font-size: 18px;
       font-weight: 600;
       opacity: 0.7;
     }
 
-    .timer-display {
-      font-size: 24px;
-      font-weight: 700;
-      padding: 12px 24px;
-      border-radius: 12px;
-      min-width: 120px;
-      text-align: center;
-    }
-
-    .timer-display.warning {
-      animation: pulse 1s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-
     .flashcard {
       width: 100%;
       max-width: 600px;
-      min-height: 400px;
+      height: 400px;
       perspective: 1000px;
       cursor: pointer;
     }
@@ -576,7 +439,7 @@ window.addEventListener("DOMContentLoaded", () => {
     .flashcard-inner {
       position: relative;
       width: 100%;
-      min-height: 400px;
+      height: 100%;
       transition: transform 0.6s;
       transform-style: preserve-3d;
     }
@@ -588,7 +451,7 @@ window.addEventListener("DOMContentLoaded", () => {
     .flashcard-face {
       position: absolute;
       width: 100%;
-      min-height: 400px;
+      height: 100%;
       backface-visibility: hidden;
       border-radius: 16px;
       display: flex;
@@ -623,66 +486,6 @@ window.addEventListener("DOMContentLoaded", () => {
       line-height: 1.4;
       word-wrap: break-word;
       max-width: 100%;
-    }
-
-    .flashcard-image {
-      max-width: 100%;
-      max-height: 200px;
-      border-radius: 12px;
-      margin-top: 16px;
-      object-fit: contain;
-    }
-
-    .hint-section {
-      margin-top: 16px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.05);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .hint-section:hover {
-      background: rgba(0, 0, 0, 0.1);
-    }
-
-    .hint-label {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      opacity: 0.6;
-    }
-
-    .hint-text {
-      font-size: 16px;
-      margin-top: 8px;
-      display: none;
-    }
-
-    .hint-text.revealed {
-      display: block;
-    }
-
-    .audio-controls {
-      display: flex;
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .audio-btn {
-      padding: 10px 20px;
-      border: 2px solid;
-      border-radius: 8px;
-      background: white;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .audio-btn:hover {
-      transform: scale(1.05);
     }
 
     .study-controls {
@@ -850,76 +653,7 @@ window.addEventListener("DOMContentLoaded", () => {
       transform: translateY(0);
     }
 
-    .chart-container {
-      width: 100%;
-      padding: 24px;
-      border-radius: 12px;
-      margin-bottom: 32px;
-    }
-
-    .chart-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 20px;
-    }
-
-    .chart-bars {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-around;
-      height: 200px;
-      gap: 8px;
-    }
-
-    .chart-bar {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .bar {
-      width: 100%;
-      border-radius: 8px 8px 0 0;
-      transition: all 0.3s;
-      position: relative;
-    }
-
-    .bar-value {
-      position: absolute;
-      top: -24px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    .bar-label {
-      font-size: 12px;
-      font-weight: 600;
-      text-align: center;
-    }
-
-    .goal-setter {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 24px;
-    }
-
-    .goal-input {
-      width: 80px;
-      padding: 8px 12px;
-      border: 2px solid;
-      border-radius: 8px;
-      font-size: 16px;
-      text-align: center;
-    }
-
-    .modal {
+    .fraction-modal {
       position: fixed;
       top: 0;
       left: 0;
@@ -932,145 +666,94 @@ window.addEventListener("DOMContentLoaded", () => {
       z-index: 2000;
     }
 
-    .modal.show {
+    .fraction-modal.show {
       display: flex;
     }
 
-    .modal-content {
+    .fraction-modal-content {
       background: white;
       padding: 32px;
       border-radius: 16px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-      max-width: 500px;
+      max-width: 400px;
       width: 90%;
       max-height: 90%;
       overflow-y: auto;
     }
 
-    .modal-title {
+    .fraction-modal-title {
       font-size: 24px;
       font-weight: 700;
       margin-bottom: 24px;
       text-align: center;
     }
 
-    .modal-buttons {
+    .fraction-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 24px 0;
+      font-size: 32px;
+      font-weight: 600;
+    }
+
+    .fraction-numerator,
+    .fraction-denominator {
+      padding: 8px;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .fraction-line {
+      width: 100%;
+      height: 3px;
+      background: currentColor;
+      margin: 4px 0;
+    }
+
+    .fraction-input-group {
+      margin-bottom: 16px;
+    }
+
+    .fraction-input-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .fraction-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      font-size: 18px;
+      text-align: center;
+    }
+
+    .fraction-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    .fraction-modal-buttons {
       display: flex;
       gap: 12px;
       margin-top: 24px;
     }
-
-    .study-mode-options {
-      display: grid;
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .mode-option {
-      padding: 20px;
-      border: 2px solid;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .mode-option:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .mode-option.selected {
-      border-width: 3px;
-    }
-
-    .mode-title {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .mode-description {
-      font-size: 14px;
-      opacity: 0.7;
-    }
-
-    .timer-input-group {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      margin-top: 12px;
-    }
-
-    .timer-input {
-      width: 80px;
-      padding: 8px 12px;
-      border: 2px solid;
-      border-radius: 8px;
-      font-size: 16px;
-      text-align: center;
-    }
   </style>
   <style>@view-transition { navigation: auto; }</style>
-  <script src="tailwindcss.js" type="text/javascript"></script>
+  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
  </head>
  <body>
   <div class="app-container">
    <div class="header">
-    <h1 class="app-title" id="appTitle">Smart Flashcards</h1>
+    <h1 class="app-title" id="appTitle">My Flashcards</h1>
     <div class="breadcrumb" id="breadcrumb"></div>
    </div>
-   <div class="main-content"><!-- Dashboard View -->
-    <div id="dashboardView" class="view active">
-     <div class="stats-grid">
-      <div class="stat-card" id="streakCard">
-       <div class="stat-value" id="streakValue">
-        0
-       </div>
-       <div class="stat-label">
-        🔥 Day Streak
-       </div>
-      </div>
-      <div class="stat-card" id="totalCardsCard">
-       <div class="stat-value" id="totalCardsValue">
-        0
-       </div>
-       <div class="stat-label">
-        📚 Total Cards
-       </div>
-      </div>
-      <div class="stat-card" id="masteredCard">
-       <div class="stat-value" id="masteredValue">
-        0%
-       </div>
-       <div class="stat-label">
-        ✅ Mastered
-       </div>
-      </div>
-      <div class="stat-card" id="todayGoalCard">
-       <div class="stat-value" id="todayGoalValue">
-        0/0
-       </div>
-       <div class="stat-label">
-        🎯 Today's Goal
-       </div>
-       <div class="progress-bar-container">
-        <div class="progress-bar" id="goalProgressBar"></div>
-       </div>
-      </div>
-     </div>
-     <div class="goal-setter" id="goalSetter"><span style="font-weight: 600;">Daily Goal:</span> <input type="number" id="goalInput" class="goal-input" min="1" max="100" value="10"> <button class="btn btn-primary btn-small" id="setGoalBtn">Set Goal</button>
-     </div>
-     <div class="chart-container" id="chartContainer">
-      <div class="chart-title">
-       📊 Last 7 Days Study Activity
-      </div>
-      <div class="chart-bars" id="chartBars"></div>
-     </div>
-     <div class="action-buttons"><button class="btn btn-primary" id="viewSubjectsBtn">📚 My Subjects</button>
-     </div>
-    </div><!-- Subjects View -->
-    <div id="subjectsView" class="view">
-     <div class="action-buttons"><button class="btn btn-secondary" id="backToDashboardBtn">← Dashboard</button> <button class="btn btn-primary" id="addSubjectBtn">➕ Add Subject</button>
+   <div class="main-content"><!-- Subjects View -->
+    <div id="subjectsView" class="view active">
+     <div class="action-buttons"><button class="btn btn-primary" id="addSubjectBtn">➕ Add Subject</button>
      </div>
      <div id="addSubjectFormContainer" style="display: none;">
       <form class="form-container" id="addSubjectForm">
@@ -1096,21 +779,15 @@ window.addEventListener("DOMContentLoaded", () => {
     <div id="cardsView" class="view">
      <div class="action-buttons"><button class="btn btn-secondary" id="backToSubjectsBtn">← Back to Subjects</button> <button class="btn btn-primary" id="addCardBtn">➕ Add Card</button> <button class="btn btn-secondary" id="studyBtn" disabled>📚 Study</button>
      </div>
-     <div class="filters-section"><input type="text" id="searchBox" class="search-box" placeholder="🔍 Search cards..."> <select id="masteryFilter" class="filter-select"> <option value="all">All Cards</option> <option value="need-practice">Need Practice</option> <option value="got-it">Got It!</option> <option value="not-reviewed">Not Reviewed</option> </select> <select id="sortFilter" class="filter-select"> <option value="newest">Newest First</option> <option value="oldest">Oldest First</option> <option value="alphabetical">A-Z</option> <option value="review-due">Review Due</option> </select>
-     </div>
      <div id="addCardFormContainer" style="display: none;">
       <form class="form-container" id="addCardForm">
        <div class="form-group"><label class="form-label" for="questionInput">Question</label> <textarea id="questionInput" class="form-textarea" placeholder="Enter your question" required></textarea>
-        <div class="math-buttons"><button type="button" class="math-btn" data-insert="+">+</button> <button type="button" class="math-btn" data-insert="-">−</button> <button type="button" class="math-btn" data-insert="×">×</button> <button type="button" class="math-btn" data-insert="÷">÷</button> <button type="button" class="math-btn" data-insert="=">=</button> <button type="button" class="math-btn" data-insert="²">x²</button> <button type="button" class="math-btn" data-insert="³">x³</button> <button type="button" class="math-btn" data-insert="√">√</button> <button type="button" class="math-btn" data-insert="π">π</button>
+        <div class="math-buttons" id="questionMathButtons"><button type="button" class="math-btn" data-insert="+">+</button> <button type="button" class="math-btn" data-insert="-">−</button> <button type="button" class="math-btn" data-insert="×">×</button> <button type="button" class="math-btn" data-insert="÷">÷</button> <button type="button" class="math-btn" data-insert="=">=</button> <button type="button" class="math-btn" data-insert="(">(</button> <button type="button" class="math-btn" data-insert=")">)</button> <button type="button" class="math-btn" data-insert="²">x²</button> <button type="button" class="math-btn" data-insert="³">x³</button> <button type="button" class="math-btn" data-insert="√">√</button> <button type="button" class="math-btn" data-insert="∛">∛</button> <button type="button" class="math-btn fraction-btn" data-target="questionInput">⁄ Fraction</button> <button type="button" class="math-btn" data-insert="π">π</button> <button type="button" class="math-btn" data-insert="∞">∞</button> <button type="button" class="math-btn" data-insert="≈">≈</button> <button type="button" class="math-btn" data-insert="≠">≠</button> <button type="button" class="math-btn" data-insert="≤">≤</button> <button type="button" class="math-btn" data-insert="≥">≥</button> <button type="button" class="math-btn" data-insert="°">°</button> <button type="button" class="math-btn" data-insert="%">%</button>
         </div>
        </div>
        <div class="form-group"><label class="form-label" for="answerInput">Answer</label> <textarea id="answerInput" class="form-textarea" placeholder="Enter the answer" required></textarea>
-       </div>
-       <div class="form-group"><label class="form-label" for="hintInput">Hint (Optional)</label> <input type="text" id="hintInput" class="form-input" placeholder="Add a helpful hint">
-       </div>
-       <div class="form-group"><label class="form-label" for="imageUrlInput">Image URL (Optional)</label> <input type="url" id="imageUrlInput" class="form-input" placeholder="https://example.com/image.jpg">
-       </div>
-       <div class="form-group"><label class="form-label" for="tagsInput">Tags (comma-separated)</label> <input type="text" id="tagsInput" class="form-input" placeholder="e.g., Chapter 3, Exam, Important">
+        <div class="math-buttons" id="answerMathButtons"><button type="button" class="math-btn" data-insert="+">+</button> <button type="button" class="math-btn" data-insert="-">−</button> <button type="button" class="math-btn" data-insert="×">×</button> <button type="button" class="math-btn" data-insert="÷">÷</button> <button type="button" class="math-btn" data-insert="=">=</button> <button type="button" class="math-btn" data-insert="(">(</button> <button type="button" class="math-btn" data-insert=")">)</button> <button type="button" class="math-btn" data-insert="²">x²</button> <button type="button" class="math-btn" data-insert="³">x³</button> <button type="button" class="math-btn" data-insert="√">√</button> <button type="button" class="math-btn" data-insert="∛">∛</button> <button type="button" class="math-btn fraction-btn" data-target="answerInput">⁄ Fraction</button> <button type="button" class="math-btn" data-insert="π">π</button> <button type="button" class="math-btn" data-insert="∞">∞</button> <button type="button" class="math-btn" data-insert="≈">≈</button> <button type="button" class="math-btn" data-insert="≠">≠</button> <button type="button" class="math-btn" data-insert="≤">≤</button> <button type="button" class="math-btn" data-insert="≥">≥</button> <button type="button" class="math-btn" data-insert="°">°</button> <button type="button" class="math-btn" data-insert="%">%</button>
+        </div>
        </div>
        <div class="action-buttons"><button type="submit" class="btn btn-primary" id="saveCardBtn"> <span id="saveCardBtnText">Save Card</span> </button> <button type="button" class="btn btn-secondary" id="cancelCardBtn">Cancel</button>
        </div>
@@ -1133,13 +810,8 @@ window.addEventListener("DOMContentLoaded", () => {
      <div class="action-buttons"><button class="btn btn-secondary" id="backToCardsBtn">← Back to Cards</button> <button class="btn btn-secondary" id="shuffleBtn">🔀 Shuffle</button>
      </div>
      <div class="study-container">
-      <div class="study-header">
-       <div class="card-counter" id="studyCounter">
-        Card 1 of 1<span class="shuffle-indicator" id="shuffleIndicator"></span>
-       </div>
-       <div class="timer-display" id="timerDisplay" style="display: none;">
-        0:00
-       </div>
+      <div class="card-counter" id="studyCounter">
+       Card 1 of 1<span class="shuffle-indicator" id="shuffleIndicator"></span>
       </div>
       <div class="flashcard" id="flashcard">
        <div class="flashcard-inner">
@@ -1149,14 +821,6 @@ window.addEventListener("DOMContentLoaded", () => {
          </div>
          <div class="flashcard-text" id="questionText">
           Click to reveal answer
-         </div><img id="questionImage" class="flashcard-image" style="display: none;">
-         <div class="hint-section" id="hintSection" style="display: none;">
-          <div class="hint-label">
-           💡 Click for hint
-          </div>
-          <div class="hint-text" id="hintText"></div>
-         </div>
-         <div class="audio-controls"><button class="audio-btn" id="playQuestionBtn">🔊 Play Question</button>
          </div>
         </div>
         <div class="flashcard-face flashcard-back">
@@ -1165,8 +829,6 @@ window.addEventListener("DOMContentLoaded", () => {
          </div>
          <div class="flashcard-text" id="answerText">
           Answer appears here
-         </div><img id="answerImage" class="flashcard-image" style="display: none;">
-         <div class="audio-controls"><button class="audio-btn" id="playAnswerBtn">🔊 Play Answer</button>
          </div>
         </div>
        </div>
@@ -1179,39 +841,28 @@ window.addEventListener("DOMContentLoaded", () => {
     </div>
    </div>
   </div>
-  <div class="toast" id="toast"></div><!-- Study Mode Modal -->
-  <div class="modal" id="studyModeModal">
-   <div class="modal-content">
-    <h2 class="modal-title">Choose Study Mode</h2>
-    <div class="study-mode-options">
-     <div class="mode-option" data-mode="normal">
-      <div class="mode-title">
-       📚 Normal Mode
-      </div>
-      <div class="mode-description">
-       Study all cards at your own pace
-      </div>
+  <div class="toast" id="toast"></div><!-- Fraction Modal -->
+  <div class="fraction-modal" id="fractionModal">
+   <div class="fraction-modal-content">
+    <h2 class="fraction-modal-title">Build a Fraction</h2>
+    <div class="fraction-preview">
+     <div class="fraction-numerator" id="fractionPreviewNum">
+      ?
      </div>
-     <div class="mode-option" data-mode="spaced">
-      <div class="mode-title">
-       🧠 Spaced Repetition
-      </div>
-      <div class="mode-description">
-       Focus on cards that need practice and are due for review
-      </div>
-     </div>
-     <div class="mode-option" data-mode="timed">
-      <div class="mode-title">
-       ⏱️ Timed Mode
-      </div>
-      <div class="mode-description">
-       Challenge yourself with a countdown timer
-      </div>
-      <div class="timer-input-group" id="timerInputGroup" style="display: none;"><label>Seconds per card:</label> <input type="number" id="timerSecondsInput" class="timer-input" min="5" max="300" value="30">
-      </div>
+     <div class="fraction-line"></div>
+     <div class="fraction-denominator" id="fractionPreviewDen">
+      ?
      </div>
     </div>
-    <div class="modal-buttons"><button class="btn btn-primary" id="startStudyBtn" style="flex: 1;">Start Studying</button> <button class="btn btn-secondary" id="cancelStudyBtn" style="flex: 1;">Cancel</button>
+    <div class="fraction-input-group"><label class="fraction-input-label" for="numeratorInput">Numerator (top)</label> <input type="text" id="numeratorInput" class="fraction-input" placeholder="Enter numerator">
+     <div class="math-buttons" style="margin-top: 8px;"><button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="+">+</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="-">−</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="×">×</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="÷">÷</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="=">=</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="(">(</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert=")">)</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="²">x²</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="³">x³</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="√">√</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="∛">∛</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="π">π</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="∞">∞</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="≈">≈</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="≠">≠</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="≤">≤</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="≥">≥</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="°">°</button> <button type="button" class="math-btn fraction-math-btn" data-target="numeratorInput" data-insert="%">%</button>
+     </div>
+    </div>
+    <div class="fraction-input-group"><label class="fraction-input-label" for="denominatorInput">Denominator (bottom)</label> <input type="text" id="denominatorInput" class="fraction-input" placeholder="Enter denominator">
+     <div class="math-buttons" style="margin-top: 8px;"><button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="+">+</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="-">−</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="×">×</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="÷">÷</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="=">=</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="(">(</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert=")">)</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="²">x²</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="³">x³</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="√">√</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="∛">∛</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="π">π</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="∞">∞</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="≈">≈</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="≠">≠</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="≤">≤</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="≥">≥</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="°">°</button> <button type="button" class="math-btn fraction-math-btn" data-target="denominatorInput" data-insert="%">%</button>
+     </div>
+    </div>
+    <div class="fraction-modal-buttons"><button class="btn btn-primary" id="insertFractionBtn" style="flex: 1;">Insert Fraction</button> <button class="btn btn-secondary" id="cancelFractionBtn" style="flex: 1;">Cancel</button>
     </div>
    </div>
   </div>
@@ -1224,7 +875,7 @@ window.addEventListener("DOMContentLoaded", () => {
       secondary_action_color: "#3b82f6",
       font_family: "inherit",
       font_size: 16,
-      app_title: "Smart Flashcards",
+      app_title: "My Flashcards",
       add_subject_text: "Add Subject",
       study_button_text: "Study"
     };
@@ -1235,11 +886,6 @@ window.addEventListener("DOMContentLoaded", () => {
     let isFlipped = false;
     let isShuffled = false;
     let shuffledCards = [];
-    let studyMode = 'normal';
-    let timerSeconds = 30;
-    let timerInterval = null;
-    let currentTimer = 0;
-    let selectedStudyMode = 'normal';
 
     const subjectIcons = ['📚', '🔬', '🌍', '🎨', '💻', '🎵', '⚽', '🏛️', '🧮', '📖', '🌟', '🚀'];
 
@@ -1251,7 +897,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const dataHandler = {
       onDataChanged(data) {
         allRecords = data;
-        renderDashboard();
         renderSubjects();
         if (currentSubjectId) {
           renderCards();
@@ -1298,23 +943,6 @@ window.addEventListener("DOMContentLoaded", () => {
       document.getElementById('addSubjectBtn').innerHTML = `➕ ${addSubjectText}`;
       document.getElementById('studyBtn').innerHTML = `📚 ${studyButtonText}`;
 
-      const statCards = document.querySelectorAll('.stat-card');
-      statCards.forEach(card => {
-        card.style.background = surfaceColor;
-        card.style.color = textColor;
-      });
-
-      const progressBar = document.getElementById('goalProgressBar');
-      progressBar.style.background = primaryActionColor;
-
-      const chartContainer = document.getElementById('chartContainer');
-      chartContainer.style.background = surfaceColor;
-      chartContainer.style.color = textColor;
-
-      const goalSetter = document.getElementById('goalSetter');
-      goalSetter.style.background = surfaceColor;
-      goalSetter.style.color = textColor;
-
       const subjectCards = document.querySelectorAll('.subject-card');
       subjectCards.forEach(card => {
         card.style.background = surfaceColor;
@@ -1331,6 +959,7 @@ window.addEventListener("DOMContentLoaded", () => {
       deleteButtons.forEach(btn => {
         btn.style.background = primaryActionColor;
         btn.style.color = 'white';
+        btn.style.fontSize = `${baseFontSize * 0.875}px`;
       });
 
       const formContainers = document.querySelectorAll('.form-container');
@@ -1339,11 +968,41 @@ window.addEventListener("DOMContentLoaded", () => {
         form.style.color = textColor;
       });
 
-      const formInputs = document.querySelectorAll('.form-input, .form-textarea, .search-box, .filter-select, .goal-input, .timer-input');
+      const formLabels = document.querySelectorAll('.form-label');
+      formLabels.forEach(label => {
+        label.style.color = textColor;
+        label.style.fontSize = `${baseFontSize * 0.875}px`;
+      });
+
+      const formInputs = document.querySelectorAll('.form-input, .form-textarea');
       formInputs.forEach(input => {
         input.style.borderColor = textColor;
         input.style.color = textColor;
+        input.style.fontSize = `${baseFontSize}px`;
       });
+
+      const subjectNames = document.querySelectorAll('.subject-name');
+      subjectNames.forEach(name => {
+        name.style.fontSize = `${baseFontSize * 1.375}px`;
+      });
+
+      const subjectCounts = document.querySelectorAll('.subject-count');
+      subjectCounts.forEach(count => {
+        count.style.fontSize = `${baseFontSize * 0.875}px`;
+      });
+
+      const flashcardQuestions = document.querySelectorAll('.flashcard-question');
+      flashcardQuestions.forEach(q => {
+        q.style.fontSize = `${baseFontSize * 1.125}px`;
+      });
+
+      const flashcardAnswers = document.querySelectorAll('.flashcard-answer');
+      flashcardAnswers.forEach(a => {
+        a.style.fontSize = `${baseFontSize}px`;
+      });
+
+      document.querySelector('.card-counter').style.fontSize = `${baseFontSize * 1.125}px`;
+      document.querySelector('.card-counter').style.color = textColor;
 
       const flashcardFront = document.querySelector('.flashcard-front');
       flashcardFront.style.background = surfaceColor;
@@ -1353,205 +1012,39 @@ window.addEventListener("DOMContentLoaded", () => {
       flashcardBack.style.background = primaryActionColor;
       flashcardBack.style.color = 'white';
 
-      const timerDisplay = document.getElementById('timerDisplay');
-      timerDisplay.style.background = surfaceColor;
-      timerDisplay.style.color = textColor;
-
-      const audioButtons = document.querySelectorAll('.audio-btn');
-      audioButtons.forEach(btn => {
-        btn.style.borderColor = textColor;
-        btn.style.color = textColor;
+      const flashcardLabels = document.querySelectorAll('.flashcard-label');
+      flashcardLabels.forEach(label => {
+        label.style.fontSize = `${baseFontSize * 0.875}px`;
       });
-    }
 
-    function getSettings() {
-      const settings = allRecords.find(r => r.type === 'settings');
-      return settings || {
-        dailyGoal: 10,
-        currentStreak: 0,
-        longestStreak: 0,
-        lastStudyDate: null
-      };
-    }
-
-    async function updateSettings(updates) {
-      const settings = allRecords.find(r => r.type === 'settings');
-      
-      if (settings) {
-        const updated = { ...settings, ...updates };
-        await window.dataSdk.update(updated);
-      } else {
-        const newSettings = {
-          id: 'settings-1',
-          type: 'settings',
-          subjectId: '',
-          subjectName: '',
-          question: '',
-          answer: '',
-          hint: '',
-          imageUrl: '',
-          tags: '',
-          mastery: '',
-          reviewCount: 0,
-          lastReviewed: '',
-          nextReview: '',
-          createdAt: new Date().toISOString(),
-          studySessionDate: '',
-          cardsStudied: 0,
-          dailyGoal: 10,
-          currentStreak: 0,
-          longestStreak: 0,
-          lastStudyDate: '',
-          ...updates
-        };
-        await window.dataSdk.create(newSettings);
-      }
-    }
-
-    function getStudySessions() {
-      return allRecords.filter(r => r.type === 'study-session');
-    }
-
-    async function recordStudySession(cardsStudied) {
-      const today = new Date().toISOString().split('T')[0];
-      const existingSession = allRecords.find(r => 
-        r.type === 'study-session' && r.studySessionDate === today
-      );
-
-      if (existingSession) {
-        const updated = {
-          ...existingSession,
-          cardsStudied: existingSession.cardsStudied + cardsStudied
-        };
-        await window.dataSdk.update(updated);
-      } else {
-        const newSession = {
-          id: `session-${Date.now()}`,
-          type: 'study-session',
-          subjectId: '',
-          subjectName: '',
-          question: '',
-          answer: '',
-          hint: '',
-          imageUrl: '',
-          tags: '',
-          mastery: '',
-          reviewCount: 0,
-          lastReviewed: '',
-          nextReview: '',
-          createdAt: new Date().toISOString(),
-          studySessionDate: today,
-          cardsStudied: cardsStudied,
-          dailyGoal: 0,
-          currentStreak: 0,
-          longestStreak: 0,
-          lastStudyDate: ''
-        };
-        await window.dataSdk.create(newSession);
-      }
-
-      await updateStreak();
-    }
-
-    async function updateStreak() {
-      const settings = getSettings();
-      const today = new Date().toISOString().split('T')[0];
-      const lastStudy = settings.lastStudyDate;
-
-      if (!lastStudy) {
-        await updateSettings({
-          currentStreak: 1,
-          longestStreak: Math.max(1, settings.longestStreak),
-          lastStudyDate: today
-        });
-      } else if (lastStudy !== today) {
-        const lastDate = new Date(lastStudy);
-        const todayDate = new Date(today);
-        const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
-
-        if (diffDays === 1) {
-          const newStreak = settings.currentStreak + 1;
-          await updateSettings({
-            currentStreak: newStreak,
-            longestStreak: Math.max(newStreak, settings.longestStreak),
-            lastStudyDate: today
-          });
-        } else if (diffDays > 1) {
-          await updateSettings({
-            currentStreak: 1,
-            lastStudyDate: today
-          });
-        }
-      }
-    }
-
-    function renderDashboard() {
-      const settings = getSettings();
-      const cards = allRecords.filter(r => r.type === 'card');
-      const masteredCards = cards.filter(c => c.mastery === 'got-it').length;
-      const masteryPercentage = cards.length > 0 ? Math.round((masteredCards / cards.length) * 100) : 0;
-
-      const today = new Date().toISOString().split('T')[0];
-      const todaySession = allRecords.find(r => 
-        r.type === 'study-session' && r.studySessionDate === today
-      );
-      const todayStudied = todaySession ? todaySession.cardsStudied : 0;
-
-      document.getElementById('streakValue').textContent = settings.currentStreak || 0;
-      document.getElementById('totalCardsValue').textContent = cards.length;
-      document.getElementById('masteredValue').textContent = `${masteryPercentage}%`;
-      document.getElementById('todayGoalValue').textContent = `${todayStudied}/${settings.dailyGoal || 10}`;
-
-      const goalProgress = Math.min((todayStudied / (settings.dailyGoal || 10)) * 100, 100);
-      document.getElementById('goalProgressBar').style.width = `${goalProgress}%`;
-
-      document.getElementById('goalInput').value = settings.dailyGoal || 10;
-
-      renderChart();
-    }
-
-    function renderChart() {
-      const chartBars = document.getElementById('chartBars');
-      chartBars.innerHTML = '';
-
-      const last7Days = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        last7Days.push(date.toISOString().split('T')[0]);
-      }
-
-      const sessions = getStudySessions();
-      const config = window.elementSdk?.config || defaultConfig;
-
-      last7Days.forEach(date => {
-        const session = sessions.find(s => s.studySessionDate === date);
-        const cardsStudied = session ? session.cardsStudied : 0;
-
-        const barContainer = document.createElement('div');
-        barContainer.className = 'chart-bar';
-
-        const bar = document.createElement('div');
-        bar.className = 'bar';
-        const maxHeight = 200;
-        const height = Math.max(cardsStudied * 10, 5);
-        bar.style.height = `${Math.min(height, maxHeight)}px`;
-        bar.style.background = config.primary_action_color || defaultConfig.primary_action_color;
-
-        const barValue = document.createElement('div');
-        barValue.className = 'bar-value';
-        barValue.textContent = cardsStudied;
-        bar.appendChild(barValue);
-
-        const label = document.createElement('div');
-        label.className = 'bar-label';
-        const dateObj = new Date(date);
-        label.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-
-        barContainer.appendChild(bar);
-        barContainer.appendChild(label);
-        chartBars.appendChild(barContainer);
+      const flashcardTexts = document.querySelectorAll('.flashcard-text');
+      flashcardTexts.forEach(text => {
+        text.style.fontSize = `${baseFontSize * 1.75}px`;
       });
+
+      const emptyStates = document.querySelectorAll('.empty-state');
+      emptyStates.forEach(state => {
+        state.style.color = textColor;
+      });
+
+      const emptyStateIcons = document.querySelectorAll('.empty-state-icon');
+      emptyStateIcons.forEach(icon => {
+        icon.style.fontSize = `${baseFontSize * 4}px`;
+      });
+
+      const emptyStateTexts = document.querySelectorAll('.empty-state-text');
+      emptyStateTexts.forEach(text => {
+        text.style.fontSize = `${baseFontSize * 1.25}px`;
+      });
+
+      const emptyStateSubtexts = document.querySelectorAll('.empty-state-subtext');
+      emptyStateSubtexts.forEach(text => {
+        text.style.fontSize = `${baseFontSize}px`;
+      });
+
+      document.getElementById('toast').style.background = primaryActionColor;
+      document.getElementById('toast').style.color = 'white';
+      document.getElementById('toast').style.fontSize = `${baseFontSize}px`;
     }
 
     function getSubjects() {
@@ -1562,19 +1055,14 @@ window.addEventListener("DOMContentLoaded", () => {
             id: record.subjectId,
             name: record.subjectName,
             record: record,
-            cardCount: 0,
-            masteredCount: 0,
-            needPracticeCount: 0
+            cardCount: 0
           });
         }
       });
       
       allRecords.forEach(record => {
         if (record.type === 'card' && subjectMap.has(record.subjectId)) {
-          const subject = subjectMap.get(record.subjectId);
-          subject.cardCount++;
-          if (record.mastery === 'got-it') subject.masteredCount++;
-          if (record.mastery === 'need-practice') subject.needPracticeCount++;
+          subjectMap.get(record.subjectId).cardCount++;
         }
       });
 
@@ -1585,39 +1073,6 @@ window.addEventListener("DOMContentLoaded", () => {
       return allRecords.filter(record => 
         record.type === 'card' && record.subjectId === subjectId
       );
-    }
-
-    function filterAndSortCards(cards) {
-      const searchTerm = document.getElementById('searchBox').value.toLowerCase();
-      const masteryFilter = document.getElementById('masteryFilter').value;
-      const sortFilter = document.getElementById('sortFilter').value;
-
-      let filtered = cards.filter(card => {
-        const matchesSearch = card.question.toLowerCase().includes(searchTerm) || 
-                            card.answer.toLowerCase().includes(searchTerm) ||
-                            (card.tags && card.tags.toLowerCase().includes(searchTerm));
-        
-        let matchesMastery = true;
-        if (masteryFilter === 'need-practice') matchesMastery = card.mastery === 'need-practice';
-        if (masteryFilter === 'got-it') matchesMastery = card.mastery === 'got-it';
-        if (masteryFilter === 'not-reviewed') matchesMastery = !card.mastery;
-
-        return matchesSearch && matchesMastery;
-      });
-
-      filtered.sort((a, b) => {
-        if (sortFilter === 'newest') return new Date(b.createdAt) - new Date(a.createdAt);
-        if (sortFilter === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
-        if (sortFilter === 'alphabetical') return a.question.localeCompare(b.question);
-        if (sortFilter === 'review-due') {
-          const aNext = a.nextReview ? new Date(a.nextReview) : new Date(0);
-          const bNext = b.nextReview ? new Date(b.nextReview) : new Date(0);
-          return aNext - bNext;
-        }
-        return 0;
-      });
-
-      return filtered;
     }
 
     function renderSubjects() {
@@ -1632,12 +1087,24 @@ window.addEventListener("DOMContentLoaded", () => {
       }
 
       emptyState.style.display = 'none';
-      grid.innerHTML = '';
+
+      const existingCards = new Map(
+        [...grid.children].map(el => [el.dataset.subjectId, el])
+      );
 
       subjects.forEach(subject => {
-        const card = createSubjectCard(subject);
-        grid.appendChild(card);
+        if (existingCards.has(subject.id)) {
+          const card = existingCards.get(subject.id);
+          card.querySelector('.subject-name').textContent = subject.name;
+          card.querySelector('.subject-count').textContent = `${subject.cardCount} card${subject.cardCount !== 1 ? 's' : ''}`;
+          existingCards.delete(subject.id);
+        } else {
+          const card = createSubjectCard(subject);
+          grid.appendChild(card);
+        }
       });
+
+      existingCards.forEach(el => el.remove());
     }
 
     function createSubjectCard(subject) {
@@ -1656,37 +1123,19 @@ window.addEventListener("DOMContentLoaded", () => {
       const name = document.createElement('div');
       name.className = 'subject-name';
       name.textContent = subject.name;
+      name.style.fontSize = `${(config.font_size || defaultConfig.font_size) * 1.375}px`;
 
       const count = document.createElement('div');
       count.className = 'subject-count';
       count.textContent = `${subject.cardCount} card${subject.cardCount !== 1 ? 's' : ''}`;
-
-      const stats = document.createElement('div');
-      stats.className = 'subject-stats';
-
-      if (subject.masteredCount > 0) {
-        const masteredStat = document.createElement('span');
-        masteredStat.className = 'subject-stat';
-        masteredStat.style.background = '#d1fae5';
-        masteredStat.style.color = '#10b981';
-        masteredStat.textContent = `✅ ${subject.masteredCount}`;
-        stats.appendChild(masteredStat);
-      }
-
-      if (subject.needPracticeCount > 0) {
-        const practiceStat = document.createElement('span');
-        practiceStat.className = 'subject-stat';
-        practiceStat.style.background = '#fee2e2';
-        practiceStat.style.color = '#ef4444';
-        practiceStat.textContent = `❌ ${subject.needPracticeCount}`;
-        stats.appendChild(practiceStat);
-      }
+      count.style.fontSize = `${(config.font_size || defaultConfig.font_size) * 0.875}px`;
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-subject-btn';
       deleteBtn.textContent = '×';
       deleteBtn.style.background = config.primary_action_color || defaultConfig.primary_action_color;
       deleteBtn.style.color = 'white';
+      deleteBtn.style.fontSize = `${(config.font_size || defaultConfig.font_size) * 1.5}px`;
       deleteBtn.onclick = (e) => {
         e.stopPropagation();
         deleteSubject(subject);
@@ -1696,7 +1145,6 @@ window.addEventListener("DOMContentLoaded", () => {
       card.appendChild(icon);
       card.appendChild(name);
       card.appendChild(count);
-      card.appendChild(stats);
 
       card.onclick = () => openSubject(subject.id, subject.name);
 
@@ -1705,28 +1153,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
     function openSubject(subjectId, subjectName) {
       currentSubjectId = subjectId;
-      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="viewSubjects()">Subjects</span> / ${subjectName}`;
+      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="backToSubjects()">Subjects</span> / ${subjectName}`;
       document.getElementById('subjectsView').classList.remove('active');
       document.getElementById('cardsView').classList.add('active');
       renderCards();
     }
 
-    function viewSubjects() {
-      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="viewDashboard()">Dashboard</span> / Subjects`;
-      document.getElementById('dashboardView').classList.remove('active');
-      document.getElementById('subjectsView').classList.add('active');
-    }
-
-    function viewDashboard() {
-      document.getElementById('breadcrumb').textContent = '';
-      document.getElementById('subjectsView').classList.remove('active');
-      document.getElementById('cardsView').classList.remove('active');
-      document.getElementById('dashboardView').classList.add('active');
-    }
-
     function backToSubjects() {
       currentSubjectId = null;
-      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="viewDashboard()">Dashboard</span> / Subjects`;
+      document.getElementById('breadcrumb').textContent = '';
       document.getElementById('cardsView').classList.remove('active');
       document.getElementById('subjectsView').classList.add('active');
       document.getElementById('addCardFormContainer').style.display = 'none';
@@ -1735,7 +1170,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
     function renderCards() {
       const cards = getCardsForSubject(currentSubjectId);
-      const filtered = filterAndSortCards(cards);
       const listContainer = document.getElementById('flashcardList');
       const emptyState = document.getElementById('cardsEmptyState');
       const studyBtn = document.getElementById('studyBtn');
@@ -1750,11 +1184,48 @@ window.addEventListener("DOMContentLoaded", () => {
       emptyState.style.display = 'none';
       studyBtn.disabled = false;
 
-      listContainer.innerHTML = '';
-      filtered.forEach(card => {
-        const item = createFlashcardItem(card);
-        listContainer.appendChild(item);
+      const existingItems = new Map(
+        [...listContainer.children].map(el => [el.dataset.cardId, el])
+      );
+
+      cards.forEach(card => {
+        if (existingItems.has(card.id)) {
+          const item = existingItems.get(card.id);
+          const questionDiv = item.querySelector('.flashcard-question');
+          questionDiv.innerHTML = '';
+          questionDiv.textContent = card.question;
+          
+          if (card.mastery === 'need-practice') {
+            const indicator = document.createElement('span');
+            indicator.className = 'mastery-indicator mastery-need-practice';
+            indicator.textContent = 'Need Practice';
+            questionDiv.appendChild(indicator);
+          } else if (card.mastery === 'got-it') {
+            const indicator = document.createElement('span');
+            indicator.className = 'mastery-indicator mastery-got-it';
+            indicator.textContent = 'Got It!';
+            questionDiv.appendChild(indicator);
+          }
+          
+          renderMathInElement(questionDiv, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '\\[', right: '\\]', display: true},
+              {left: '$', right: '$', display: false},
+              {left: '\\(', right: '\\)', display: false}
+            ],
+            throwOnError: false
+          });
+          
+          item.querySelector('.flashcard-answer').textContent = card.answer;
+          existingItems.delete(card.id);
+        } else {
+          const item = createFlashcardItem(card);
+          listContainer.appendChild(item);
+        }
       });
+
+      existingItems.forEach(el => el.remove());
     }
 
     function createFlashcardItem(card) {
@@ -1772,6 +1243,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const question = document.createElement('div');
       question.className = 'flashcard-question';
       question.textContent = card.question;
+      question.style.fontSize = `${(config.font_size || defaultConfig.font_size) * 1.125}px`;
       
       if (card.mastery === 'need-practice') {
         const indicator = document.createElement('span');
@@ -1784,43 +1256,40 @@ window.addEventListener("DOMContentLoaded", () => {
         indicator.textContent = 'Got It!';
         question.appendChild(indicator);
       }
+      
+      renderMathInElement(question, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false}
+        ],
+        throwOnError: false
+      });
 
       const answer = document.createElement('div');
       answer.className = 'flashcard-answer';
       answer.textContent = card.answer;
-
-      const meta = document.createElement('div');
-      meta.className = 'flashcard-meta';
-
-      if (card.tags) {
-        const tags = card.tags.split(',').map(t => t.trim()).filter(t => t);
-        tags.forEach(tag => {
-          const badge = document.createElement('span');
-          badge.className = 'tag-badge';
-          badge.textContent = tag;
-          meta.appendChild(badge);
-        });
-      }
-
-      if (card.imageUrl) {
-        const img = document.createElement('img');
-        img.src = card.imageUrl;
-        img.className = 'card-image-preview';
-        img.onerror = function() {
-          this.style.display = 'none';
-        };
-        meta.appendChild(img);
-      }
+      answer.style.fontSize = `${config.font_size || defaultConfig.font_size}px`;
+      renderMathInElement(answer, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false}
+        ],
+        throwOnError: false
+      });
 
       content.appendChild(question);
       content.appendChild(answer);
-      content.appendChild(meta);
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
       deleteBtn.textContent = 'Delete';
       deleteBtn.style.background = config.primary_action_color || defaultConfig.primary_action_color;
       deleteBtn.style.color = 'white';
+      deleteBtn.style.fontSize = `${(config.font_size || defaultConfig.font_size) * 0.875}px`;
       deleteBtn.onclick = () => deleteCard(card);
 
       item.appendChild(content);
@@ -1868,34 +1337,9 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    function getStudyCards() {
-      let cards = getCardsForSubject(currentSubjectId);
-
-      if (studyMode === 'spaced') {
-        const now = new Date();
-        cards = cards.filter(card => {
-          if (card.mastery === 'need-practice') return true;
-          if (!card.nextReview) return true;
-          return new Date(card.nextReview) <= now;
-        });
-
-        cards.sort((a, b) => {
-          if (a.mastery === 'need-practice' && b.mastery !== 'need-practice') return -1;
-          if (a.mastery !== 'need-practice' && b.mastery === 'need-practice') return 1;
-          return (a.reviewCount || 0) - (b.reviewCount || 0);
-        });
-      }
-
-      return cards;
-    }
-
     function updateStudyView() {
-      const cards = isShuffled ? shuffledCards : getStudyCards();
-      if (cards.length === 0) {
-        showToast('No cards available for this study mode');
-        backToCards();
-        return;
-      }
+      const cards = isShuffled ? shuffledCards : getCardsForSubject(currentSubjectId);
+      if (cards.length === 0) return;
 
       const card = cards[currentStudyIndex];
       
@@ -1908,7 +1352,9 @@ window.addEventListener("DOMContentLoaded", () => {
       renderMathInElement(questionEl, {
         delimiters: [
           {left: '$$', right: '$$', display: true},
-          {left: '$', right: '$', display: false}
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false}
         ],
         throwOnError: false
       });
@@ -1916,36 +1362,12 @@ window.addEventListener("DOMContentLoaded", () => {
       renderMathInElement(answerEl, {
         delimiters: [
           {left: '$$', right: '$$', display: true},
-          {left: '$', right: '$', display: false}
+          {left: '\\[', right: '\\]', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false}
         ],
         throwOnError: false
       });
-
-      const questionImage = document.getElementById('questionImage');
-      const answerImage = document.getElementById('answerImage');
-      
-      if (card.imageUrl) {
-        questionImage.src = card.imageUrl;
-        questionImage.style.display = 'block';
-        answerImage.src = card.imageUrl;
-        answerImage.style.display = 'block';
-        questionImage.onerror = () => { questionImage.style.display = 'none'; };
-        answerImage.onerror = () => { answerImage.style.display = 'none'; };
-      } else {
-        questionImage.style.display = 'none';
-        answerImage.style.display = 'none';
-      }
-
-      const hintSection = document.getElementById('hintSection');
-      const hintText = document.getElementById('hintText');
-      
-      if (card.hint) {
-        hintSection.style.display = 'block';
-        hintText.textContent = card.hint;
-        hintText.classList.remove('revealed');
-      } else {
-        hintSection.style.display = 'none';
-      }
 
       const shuffleIndicator = document.getElementById('shuffleIndicator');
       shuffleIndicator.textContent = isShuffled ? '(Shuffled)' : '';
@@ -1963,59 +1385,6 @@ window.addEventListener("DOMContentLoaded", () => {
       document.getElementById('nextBtn').textContent = currentStudyIndex === cards.length - 1 ? 'Finish' : 'Next →';
     }
 
-    function startTimer() {
-      if (studyMode !== 'timed') return;
-
-      currentTimer = timerSeconds;
-      document.getElementById('timerDisplay').style.display = 'block';
-      updateTimerDisplay();
-
-      timerInterval = setInterval(() => {
-        currentTimer--;
-        updateTimerDisplay();
-
-        if (currentTimer <= 5) {
-          document.getElementById('timerDisplay').classList.add('warning');
-        }
-
-        if (currentTimer <= 0) {
-          clearInterval(timerInterval);
-          if (!isFlipped) {
-            document.getElementById('flashcard').classList.add('flipped');
-            isFlipped = true;
-          }
-          showToast('Time\'s up! ⏰');
-        }
-      }, 1000);
-    }
-
-    function updateTimerDisplay() {
-      const minutes = Math.floor(currentTimer / 60);
-      const seconds = currentTimer % 60;
-      document.getElementById('timerDisplay').textContent = 
-        `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
-
-    function stopTimer() {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
-      document.getElementById('timerDisplay').classList.remove('warning');
-    }
-
-    function speakText(text) {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        window.speechSynthesis.speak(utterance);
-      } else {
-        showToast('Text-to-speech not supported in this browser');
-      }
-    }
-
     function showToast(message) {
       const toast = document.getElementById('toast');
       toast.textContent = message;
@@ -2024,18 +1393,6 @@ window.addEventListener("DOMContentLoaded", () => {
         toast.classList.remove('show');
       }, 3000);
     }
-
-    document.getElementById('viewSubjectsBtn').addEventListener('click', viewSubjects);
-
-    document.getElementById('backToDashboardBtn').addEventListener('click', viewDashboard);
-
-    document.getElementById('setGoalBtn').addEventListener('click', async () => {
-      const goal = parseInt(document.getElementById('goalInput').value);
-      if (goal > 0 && goal <= 100) {
-        await updateSettings({ dailyGoal: goal });
-        showToast(`Daily goal set to ${goal} cards! 🎯`);
-      }
-    });
 
     document.getElementById('addSubjectBtn').addEventListener('click', () => {
       document.getElementById('addSubjectFormContainer').style.display = 'block';
@@ -2072,20 +1429,8 @@ window.addEventListener("DOMContentLoaded", () => {
         subjectName: subjectName,
         question: '',
         answer: '',
-        hint: '',
-        imageUrl: '',
-        tags: '',
         mastery: '',
-        reviewCount: 0,
-        lastReviewed: '',
-        nextReview: '',
-        createdAt: new Date().toISOString(),
-        studySessionDate: '',
-        cardsStudied: 0,
-        dailyGoal: 0,
-        currentStreak: 0,
-        longestStreak: 0,
-        lastStudyDate: ''
+        createdAt: new Date().toISOString()
       };
 
       const result = await window.dataSdk.create(newSubject);
@@ -2129,9 +1474,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
       const question = document.getElementById('questionInput').value.trim();
       const answer = document.getElementById('answerInput').value.trim();
-      const hint = document.getElementById('hintInput').value.trim();
-      const imageUrl = document.getElementById('imageUrlInput').value.trim();
-      const tags = document.getElementById('tagsInput').value.trim();
 
       const subject = getSubjects().find(s => s.id === currentSubjectId);
 
@@ -2142,20 +1484,8 @@ window.addEventListener("DOMContentLoaded", () => {
         subjectName: subject.name,
         question,
         answer,
-        hint,
-        imageUrl,
-        tags,
         mastery: '',
-        reviewCount: 0,
-        lastReviewed: '',
-        nextReview: '',
-        createdAt: new Date().toISOString(),
-        studySessionDate: '',
-        cardsStudied: 0,
-        dailyGoal: 0,
-        currentStreak: 0,
-        longestStreak: 0,
-        lastStudyDate: ''
+        createdAt: new Date().toISOString()
       };
 
       const result = await window.dataSdk.create(newCard);
@@ -2165,7 +1495,7 @@ window.addEventListener("DOMContentLoaded", () => {
         document.getElementById('addCardFormContainer').style.display = 'none';
         showToast('Card added successfully');
       } else {
-        showToast('Failed to add card');
+        showToast('Failed to add card: ' + (result.error?.message || 'Unknown error'));
       }
 
       saveBtnText.textContent = originalText;
@@ -2174,57 +1504,97 @@ window.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById('backToSubjectsBtn').addEventListener('click', backToSubjects);
 
-    document.getElementById('searchBox').addEventListener('input', renderCards);
-    document.getElementById('masteryFilter').addEventListener('change', renderCards);
-    document.getElementById('sortFilter').addEventListener('change', renderCards);
+    let currentFractionTarget = null;
 
     document.querySelectorAll('.math-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const symbol = e.target.dataset.insert;
-        const textarea = e.target.closest('.form-group').querySelector('textarea');
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const text = textarea.value;
-        
-        textarea.value = text.substring(0, start) + symbol + text.substring(end);
-        textarea.selectionStart = textarea.selectionEnd = start + symbol.length;
-        textarea.focus();
-      });
-    });
-
-    document.getElementById('studyBtn').addEventListener('click', () => {
-      document.getElementById('studyModeModal').classList.add('show');
-      selectedStudyMode = 'normal';
-      document.querySelectorAll('.mode-option').forEach(opt => {
-        opt.classList.remove('selected');
-        if (opt.dataset.mode === 'normal') opt.classList.add('selected');
-      });
-    });
-
-    document.querySelectorAll('.mode-option').forEach(option => {
-      option.addEventListener('click', (e) => {
-        document.querySelectorAll('.mode-option').forEach(opt => opt.classList.remove('selected'));
-        option.classList.add('selected');
-        selectedStudyMode = option.dataset.mode;
-
-        const timerInputGroup = document.getElementById('timerInputGroup');
-        if (selectedStudyMode === 'timed') {
-          timerInputGroup.style.display = 'flex';
+        if (e.target.classList.contains('fraction-btn')) {
+          currentFractionTarget = e.target.dataset.target;
+          document.getElementById('fractionModal').classList.add('show');
+          document.getElementById('numeratorInput').value = '';
+          document.getElementById('denominatorInput').value = '';
+          document.getElementById('fractionPreviewNum').textContent = '?';
+          document.getElementById('fractionPreviewDen').textContent = '?';
+          document.getElementById('numeratorInput').focus();
         } else {
-          timerInputGroup.style.display = 'none';
+          const symbol = e.target.dataset.insert;
+          const textarea = e.target.closest('.form-group').querySelector('textarea');
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const text = textarea.value;
+          
+          textarea.value = text.substring(0, start) + symbol + text.substring(end);
+          textarea.selectionStart = textarea.selectionEnd = start + symbol.length;
+          textarea.focus();
         }
       });
     });
 
-    document.getElementById('startStudyBtn').addEventListener('click', () => {
-      studyMode = selectedStudyMode;
-      
-      if (studyMode === 'timed') {
-        timerSeconds = parseInt(document.getElementById('timerSecondsInput').value) || 30;
+    document.getElementById('numeratorInput').addEventListener('input', (e) => {
+      const value = e.target.value || '?';
+      document.getElementById('fractionPreviewNum').textContent = value;
+    });
+
+    document.getElementById('denominatorInput').addEventListener('input', (e) => {
+      const value = e.target.value || '?';
+      document.getElementById('fractionPreviewDen').textContent = value;
+    });
+
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('fraction-math-btn')) {
+        const symbol = e.target.dataset.insert;
+        const targetId = e.target.dataset.target;
+        const input = document.getElementById(targetId);
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+        const text = input.value;
+        
+        input.value = text.substring(0, start) + symbol + text.substring(end);
+        input.selectionStart = input.selectionEnd = start + symbol.length;
+        input.focus();
+
+        if (targetId === 'numeratorInput') {
+          document.getElementById('fractionPreviewNum').textContent = input.value || '?';
+        } else {
+          document.getElementById('fractionPreviewDen').textContent = input.value || '?';
+        }
+      }
+    });
+
+    document.getElementById('insertFractionBtn').addEventListener('click', () => {
+      const numerator = document.getElementById('numeratorInput').value.trim();
+      const denominator = document.getElementById('denominatorInput').value.trim();
+
+      if (!numerator || !denominator) {
+        showToast('Please enter both numerator and denominator');
+        return;
       }
 
-      document.getElementById('studyModeModal').classList.remove('show');
+      const fraction = `$\\frac{${numerator}}{${denominator}}$`;
+      
+      const textarea = document.getElementById(currentFractionTarget);
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      
+      textarea.value = text.substring(0, start) + fraction + text.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + fraction.length;
+      
+      document.getElementById('fractionModal').classList.remove('show');
+      textarea.focus();
+    });
 
+    document.getElementById('cancelFractionBtn').addEventListener('click', () => {
+      document.getElementById('fractionModal').classList.remove('show');
+    });
+
+    document.getElementById('fractionModal').addEventListener('click', (e) => {
+      if (e.target.id === 'fractionModal') {
+        document.getElementById('fractionModal').classList.remove('show');
+      }
+    });
+
+    document.getElementById('studyBtn').addEventListener('click', () => {
       currentStudyIndex = 0;
       isFlipped = false;
       isShuffled = false;
@@ -2232,56 +1602,26 @@ window.addEventListener("DOMContentLoaded", () => {
       document.getElementById('flashcard').classList.remove('flipped');
       
       const subject = getSubjects().find(s => s.id === currentSubjectId);
-      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="viewSubjects()">Subjects</span> / <span class="breadcrumb-link" onclick="backToCards()">${subject.name}</span> / Study`;
+      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="backToSubjects()">Subjects</span> / <span class="breadcrumb-link" onclick="backToCards()">${subject.name}</span> / Study`;
       
       document.getElementById('cardsView').classList.remove('active');
       document.getElementById('studyView').classList.add('active');
       updateStudyView();
-
-      if (studyMode === 'timed') {
-        startTimer();
-      } else {
-        document.getElementById('timerDisplay').style.display = 'none';
-      }
-    });
-
-    document.getElementById('cancelStudyBtn').addEventListener('click', () => {
-      document.getElementById('studyModeModal').classList.remove('show');
     });
 
     document.getElementById('shuffleBtn').addEventListener('click', () => {
-      const cards = getStudyCards();
+      const cards = getCardsForSubject(currentSubjectId);
       shuffledCards = [...cards].sort(() => Math.random() - 0.5);
       isShuffled = true;
       currentStudyIndex = 0;
       isFlipped = false;
       document.getElementById('flashcard').classList.remove('flipped');
-      stopTimer();
       updateStudyView();
-      if (studyMode === 'timed') startTimer();
       showToast('Cards shuffled! 🔀');
     });
 
-    document.getElementById('hintSection').addEventListener('click', () => {
-      document.getElementById('hintText').classList.toggle('revealed');
-    });
-
-    document.getElementById('playQuestionBtn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      const cards = isShuffled ? shuffledCards : getStudyCards();
-      const card = cards[currentStudyIndex];
-      speakText(card.question);
-    });
-
-    document.getElementById('playAnswerBtn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      const cards = isShuffled ? shuffledCards : getStudyCards();
-      const card = cards[currentStudyIndex];
-      speakText(card.answer);
-    });
-
     document.getElementById('needPracticeBtn').addEventListener('click', async () => {
-      const cards = isShuffled ? shuffledCards : getStudyCards();
+      const cards = isShuffled ? shuffledCards : getCardsForSubject(currentSubjectId);
       const card = cards[currentStudyIndex];
       
       const btn = document.getElementById('needPracticeBtn');
@@ -2289,16 +1629,7 @@ window.addEventListener("DOMContentLoaded", () => {
       btn.innerHTML = '<span class="loading-spinner"></span>';
       btn.disabled = true;
 
-      const now = new Date();
-      const nextReview = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-      const updatedCard = { 
-        ...card, 
-        mastery: 'need-practice',
-        reviewCount: (card.reviewCount || 0) + 1,
-        lastReviewed: now.toISOString(),
-        nextReview: nextReview.toISOString()
-      };
+      const updatedCard = { ...card, mastery: 'need-practice' };
       const result = await window.dataSdk.update(updatedCard);
 
       if (result.isOk) {
@@ -2312,7 +1643,7 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById('gotItBtn').addEventListener('click', async () => {
-      const cards = isShuffled ? shuffledCards : getStudyCards();
+      const cards = isShuffled ? shuffledCards : getCardsForSubject(currentSubjectId);
       const card = cards[currentStudyIndex];
       
       const btn = document.getElementById('gotItBtn');
@@ -2320,18 +1651,7 @@ window.addEventListener("DOMContentLoaded", () => {
       btn.innerHTML = '<span class="loading-spinner"></span>';
       btn.disabled = true;
 
-      const now = new Date();
-      const reviewCount = (card.reviewCount || 0) + 1;
-      const daysUntilNext = Math.min(reviewCount * 2, 30);
-      const nextReview = new Date(now.getTime() + daysUntilNext * 24 * 60 * 60 * 1000);
-
-      const updatedCard = { 
-        ...card, 
-        mastery: 'got-it',
-        reviewCount: reviewCount,
-        lastReviewed: now.toISOString(),
-        nextReview: nextReview.toISOString()
-      };
+      const updatedCard = { ...card, mastery: 'got-it' };
       const result = await window.dataSdk.update(updatedCard);
 
       if (result.isOk) {
@@ -2345,12 +1665,11 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     function backToCards() {
-      stopTimer();
       document.getElementById('studyView').classList.remove('active');
       document.getElementById('cardsView').classList.add('active');
       
       const subject = getSubjects().find(s => s.id === currentSubjectId);
-      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="viewSubjects()">Subjects</span> / ${subject.name}`;
+      document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-link" onclick="backToSubjects()">Subjects</span> / ${subject.name}`;
     }
 
     document.getElementById('backToCardsBtn').addEventListener('click', backToCards);
@@ -2365,24 +1684,18 @@ window.addEventListener("DOMContentLoaded", () => {
         currentStudyIndex--;
         isFlipped = false;
         document.getElementById('flashcard').classList.remove('flipped');
-        stopTimer();
         updateStudyView();
-        if (studyMode === 'timed') startTimer();
       }
     });
 
-    document.getElementById('nextBtn').addEventListener('click', async () => {
-      const cards = isShuffled ? shuffledCards : getStudyCards();
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      const cards = isShuffled ? shuffledCards : getCardsForSubject(currentSubjectId);
       if (currentStudyIndex < cards.length - 1) {
         currentStudyIndex++;
         isFlipped = false;
         document.getElementById('flashcard').classList.remove('flipped');
-        stopTimer();
         updateStudyView();
-        if (studyMode === 'timed') startTimer();
       } else {
-        await recordStudySession(cards.length);
-        stopTimer();
         backToCards();
         showToast('Study session complete! 🎉');
       }
