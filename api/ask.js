@@ -1,14 +1,14 @@
+// api/ask.js
 import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
-  // Allow CORS from any origin (or restrict to your frontend domain)
-  res.setHeader('Access-Control-Allow-Origin', '*'); // <-- this is critical
+  // Handle CORS preflight requests
+  res.setHeader('Access-Control-Allow-Origin', '*'); // allow any origin
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight request
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(200).end(); // respond to preflight
   }
 
   if (req.method !== 'POST') {
