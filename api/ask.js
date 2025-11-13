@@ -1,5 +1,6 @@
-
 export default async function handler(req, res) {
+  console.log("OPENAI_API_KEY exists:", !!process.env.OPENAI_API_KEY); // ✅ server-side log
+
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
@@ -23,7 +24,14 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    res.status(200).json({ reply: data.choices[0].message.content });
+    console.log("OpenAI API response:", data); // ✅ log this too
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: data.error || "OpenAI API error" });
+    }
+
+    const reply = data?.choices?.[0]?.message?.content || "No response from model.";
+    res.status(200).json({ reply });
 
   } catch (error) {
     console.error("API Error:", error);
