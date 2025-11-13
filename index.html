@@ -915,23 +915,12 @@ window.elementSdk = {
     </div>
    </div>
   </div>
-  <script>
-const aiHeader = document.getElementById('ai-header');
-const aiContainer = document.getElementById('ai-assistant');
+<script>
 const aiMessages = document.getElementById('ai-messages');
 const aiInput = document.getElementById('ai-input');
 const aiSend = document.getElementById('ai-send');
 
-let isOpen = true;
-
-// Toggle assistant
-aiHeader.addEventListener('click', () => {
-  isOpen = !isOpen;
-  aiMessages.style.display = isOpen ? 'block' : 'none';
-  document.getElementById('ai-input-container').style.display = isOpen ? 'flex' : 'none';
-});
-
-// Add message to chat
+// Add message to chat window
 function addMessage(text, from = 'ai') {
   const msg = document.createElement('div');
   msg.textContent = text;
@@ -942,19 +931,7 @@ function addMessage(text, from = 'ai') {
   aiMessages.scrollTop = aiMessages.scrollHeight;
 }
 
-// Send message function (needed to fix your error)
-async function sendMessage() {
-  const prompt = aiInput.value.trim();
-  if (!prompt) return;
-
-  addMessage(prompt, 'user');
-  aiInput.value = '';
-
-  const answer = await callAI(prompt);
-  if (answer) addMessage(answer, 'ai');
-}
-
-// Call your AI API
+// Call the Vercel serverless AI function
 async function callAI(prompt) {
   try {
     const response = await fetch('https://make-flash-card-git-main-rio-espaderas-projects.vercel.app/api/ask', {
@@ -962,15 +939,40 @@ async function callAI(prompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: prompt })
     });
+
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
     const data = await response.json();
-    return data.answer || 'Sorry, no response from AI.';
+    return data.answer || 'No response from AI';
   } catch (err) {
     console.error(err);
-    return 'Error: Unable to reach AI service.';
+    return `Error: ${err.message}`;
   }
 }
 
-// Event listeners for sending
+// Send message handler
+async function sendMessage() {
+  const message = aiInput.value.trim();
+  if (!message) return;
+
+  addMessage(message, 'user');
+  aiInput.value = '';
+  addMessage('Typing...', 'ai');
+
+  const answer = await callAI(message);
+
+  // Remove "Typing..." placeholder
+  const typingMsg = aiMessages.querySelector('div:last-child');
+  if (typingMsg && typingMsg.textContent === 'Typing...') {
+    typingMsg.remove();
+  }
+
+  addMessage(answer, 'ai');
+}
+
+// Event listeners
 aiSend.addEventListener('click', sendMessage);
 aiInput.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') sendMessage();
