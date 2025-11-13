@@ -4,8 +4,140 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Flashcards</title>
-  <script src="/_sdk/data_sdk.js"></script>
-  <script src="/_sdk/element_sdk.js"></script>
+ <script>
+// ===================== DATA SDK (GLOBAL) ===================== //
+window.dataSDK = {
+  SAVE_KEY: "makeflashcard_save",
+
+  // Load full state (subjects, etc.)
+  load() {
+    const raw = localStorage.getItem(this.SAVE_KEY);
+    if (!raw) {
+      return { subjects: [] };
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error("Failed to parse save data:", e);
+      return { subjects: [] };
+    }
+  },
+
+  // Save state
+  save(state) {
+    try {
+      localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error("Failed to save:", e);
+    }
+  },
+
+  // Return all subjects
+  getAll() {
+    const state = this.load();
+    return state.subjects || [];
+  },
+
+  // Add new subject
+  addSubject(subjectName) {
+    const state = this.load();
+    const newSubject = {
+      id: "subject-" + Date.now(),
+      type: "subject",
+      subjectId: Date.now().toString(),
+      subjectName,
+      question: "",
+      answer: "",
+      createdAt: new Date().toISOString(),
+    };
+    state.subjects.push(newSubject);
+    this.save(state);
+    return newSubject;
+  },
+
+  // Delete a subject
+  deleteSubject(subjectId) {
+    const state = this.load();
+    state.subjects = state.subjects.filter(s => s.subjectId !== subjectId);
+    this.save(state);
+  },
+
+  // Update a subject (e.g. after editing)
+  updateSubject(updated) {
+    const state = this.load();
+    const index = state.subjects.findIndex(s => s.subjectId === updated.subjectId);
+    if (index !== -1) {
+      state.subjects[index] = updated;
+      this.save(state);
+    }
+  },
+};
+</script>
+ <script>
+// ===================== ELEMENT SDK (GLOBAL) ===================== //
+window.elementSDK = {
+  // Render all subjects into the UI
+  renderSubjects() {
+    const subjects = window.dataSDK.getAll();
+    const container = document.getElementById("subject-list");
+    if (!container) return console.error("No #subject-list container found");
+    container.innerHTML = "";
+
+    if (subjects.length === 0) {
+      container.innerHTML = `<p class="text-gray-500 italic">No subjects yet.</p>`;
+      return;
+    }
+
+    subjects.forEach(subject => {
+      const card = document.createElement("div");
+      card.className =
+        "p-3 border rounded-lg shadow-sm bg-white flex justify-between items-center mb-2";
+
+      card.innerHTML = `
+        <div>
+          <h3 class="font-semibold">${subject.subjectName}</h3>
+          <p class="text-sm text-gray-500">${subject.question || "No question yet"}</p>
+        </div>
+        <button class="bg-red-500 text-white text-sm px-2 py-1 rounded delete-btn">🗑</button>
+      `;
+
+      // Delete button
+      card.querySelector(".delete-btn").addEventListener("click", () => {
+        window.dataSDK.deleteSubject(subject.subjectId);
+        this.renderSubjects();
+      });
+
+      container.appendChild(card);
+    });
+  },
+
+  // Attach create button handler
+  initCreateButton() {
+    const btn = document.getElementById("create-subject-btn");
+    const input = document.getElementById("subject-input");
+
+    if (!btn || !input) {
+      console.warn("Missing #create-subject-btn or #subject-input elements");
+      return;
+    }
+
+    btn.addEventListener("click", () => {
+      const name = input.value.trim();
+      if (!name) return alert("Please enter a subject name!");
+      window.dataSDK.addSubject(name);
+      input.value = "";
+      this.renderSubjects();
+    });
+  },
+};
+</script>
+  <script>
+window.addEventListener("DOMContentLoaded", () => {
+  elementSDK.initCreateButton();
+  elementSDK.renderSubjects();
+});
+</script>
+
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
