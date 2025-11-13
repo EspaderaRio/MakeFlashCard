@@ -8,91 +8,117 @@
 // ===================== DATA SDK (GLOBAL) ===================== //
 
 window.dataSDK = {
-    SAVE_KEY: "makeflashcard_save",
+  SAVE_KEY: "makeflashcard_save",
 
-    init(handler) {
-        this.handler = handler || null;
-        const state = this.load();
-        if (!state.subjects) state.subjects = [];
-        this.save(state);
-        return Promise.resolve({ isOk: true });
-    },
+  // --- Initialize SDK ---
+  async init(handler) {
+    try {
+      console.log("🔹 dataSDK initializing...");
+      const state = this.load();
 
-    load() {
-        const raw = localStorage.getItem(this.SAVE_KEY);
-        if (!raw) return { subjects: [] };
-        try { return JSON.parse(raw); } 
-        catch { 
-            console.warn("Failed to parse saved data. Resetting."); 
-            return { subjects: [] }; 
-        }
-    },
+      // Ensure default structure
+      if (!state.records) state.records = [];
 
-    save(state) {
-        try { localStorage.setItem(this.SAVE_KEY, JSON.stringify(state)); } 
-        catch (e) { console.error("Failed to save data:", e); }
-    },
+      // Save to localStorage if missing
+      this.save(state);
 
-    getSubjects() { return this.load().subjects; },
+      // Optional: pass back handler
+      this.handler = handler || null;
 
-    addSubject(name) {
-        if (!name || typeof name !== "string") return false;
-        const state = this.load();
-        if (!Array.isArray(state.subjects)) state.subjects = [];
-        state.subjects = state.subjects.filter(s => s && typeof s.name === "string");
-        const trimmedName = name.trim();
-        if (!trimmedName) return false;
-        if (state.subjects.some(s => s.name.toLowerCase() === trimmedName.toLowerCase())) {
-            console.warn("Subject already exists:", trimmedName);
-            return false;
-        }
-        state.subjects.push({ name: trimmedName, cards: [] });
-        this.save(state);
-        return true;
-    },
+      console.log("✅ dataSDK ready with", state.records.length, "records");
+      return { isOk: true };
+    } catch (err) {
+      console.error("❌ dataSDK init error:", err);
+      return { isOk: false, error: err };
+    }
+  },
 
-    removeSubject(name) {
-        let state = this.load();
-        state.subjects = state.subjects.filter(s => s.name !== name);
-        this.save(state);
-    },
+  // --- Load saved data ---
+  load() {
+    const raw = localStorage.getItem(this.SAVE_KEY);
+    if (!raw) return { records: [] };
 
-    getCards(subjectName) {
-        const subject = this.getSubjects().find(s => s.name === subjectName);
-        return subject ? subject.cards : [];
-    },
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed.records) parsed.records = [];
+      return parsed;
+    } catch {
+      return { records: [] };
+    }
+  },
 
-    addCard(subjectName, question, answer, options = {}) {
-        if (!question || !answer) return false;
-        const state = this.load();
-        const subject = state.subjects.find(s => s.name === subjectName);
-        if (!subject) { console.warn("Subject not found:", subjectName); return false; }
-        subject.cards.push({ question, answer, ...options });
-        this.save(state);
-        return true;
-    },
+  // --- Save current state ---
+  save(state) {
+    localStorage.setItem(this.SAVE_KEY, JSON.stringify(state));
+  },
 
-    removeCard(subjectName, index) {
-        const state = this.load();
-        const subject = state.subjects.find(s => s.name === subjectName);
-        if (!subject || index < 0 || index >= subject.cards.length) return false;
-        subject.cards.splice(index, 1);
-        this.save(state);
-        return true;
-    },
+  // --- Return all records (subjects + cards) ---
+  getAll() {
+    const state = this.load();
+    return state.records || [];
+  },
 
-    clearAll() { localStorage.removeItem(this.SAVE_KEY); }
+  // --- Create new record (subject or card) ---
+  async create(record) {
+    try {
+      const state = this.load();
+      if (!state.records) state.records = [];
+
+      record.id = record.id || crypto.randomUUID();
+      record.createdAt = record.createdAt || new Date().toISOString();
+
+      state.records.push(record);
+      this.save(state);
+
+      return { isOk: true, record };
+    } catch (err) {
+      console.error("❌ Failed to create record:", err);
+      return { isOk: false, error: err };
+    }
+  },
+
+  // --- Update an existing record by ID ---
+  async update(record) {
+    try {
+      const state = this.load();
+      const index = state.records.findIndex(r => r.id === record.id);
+      if (index === -1) return { isOk: false, error: "Record not found" };
+
+      state.records[index] = { ...state.records[index], ...record };
+      this.save(state);
+      return { isOk: true };
+    } catch (err) {
+      console.error("❌ Failed to update record:", err);
+      return { isOk: false, error: err };
+    }
+  },
+
+  // --- Delete a record by ID ---
+  async delete(record) {
+    try {
+      const state = this.load();
+      state.records = (state.records || []).filter(r => r.id !== record.id);
+      this.save(state);
+      return { isOk: true };
+    } catch (err) {
+      console.error("❌ Failed to delete record:", err);
+      return { isOk: false, error: err };
+    }
+  },
+
+  // --- Reset everything (for testing/debugging) ---
+  clearAll() {
+    localStorage.removeItem(this.SAVE_KEY);
+  }
 };
 
-// --- Async wrapper so await window.dataSDK.create() works ---
-window.dataSDK.create = async function(name) {
-    const success = window.dataSDK.addSubject(name);
-    return { isOk: success };
-};
+// === Global cache for convenience ===
+window.allRecords = window.dataSDK.getAll();
+
+// === Auto-init log ===
+console.log("✅ dataSDK script loaded:", window.allRecords.length, "records found.");
 </script>
-
-  
-  <script>
+<script>
    // ===================== ELEMENT SDK (GLOBAL) ===================== //
 
 window.elementSDK = {
