@@ -38,3 +38,16 @@ export default async function handler(req, res) {
     res.status(500).json({ error: "Internal Server Error" });
   }
 }
+async function callOpenAIWithRetry(payload, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", payload);
+    if (res.status === 429 && i < retries - 1) {
+      console.log("Rate limited. Retrying in", (i + 1) * 2000, "ms");
+      await new Promise(r => setTimeout(r, (i + 1) * 2000)); // exponential backoff
+      continue;
+    }
+    return res;
+  }
+  return null;
+}
+
