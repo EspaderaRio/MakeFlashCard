@@ -6,7 +6,7 @@
   <title>Smart Flashcards</title>
  <script>
 // ===================== DATA SDK (GLOBAL) ===================== //
-window.dataSDK = {
+window.dataSdk = {
   SAVE_KEY: "makeflashcard_save",
 
   // Load full state (subjects, etc.)
@@ -75,10 +75,10 @@ window.dataSDK = {
 </script>
  <script>
 // ===================== ELEMENT SDK (GLOBAL) ===================== //
-window.elementSDK = {
+window.elementSdk = {
   // Render all subjects into the UI
   renderSubjects() {
-    const subjects = window.dataSDK.getAll();
+    const subjects = window.dataSdk.getAll();
     const container = document.getElementById("subject-list");
     if (!container) return console.error("No #subject-list container found");
     container.innerHTML = "";
@@ -103,7 +103,7 @@ window.elementSDK = {
 
       // Delete button
       card.querySelector(".delete-btn").addEventListener("click", () => {
-        window.dataSDK.deleteSubject(subject.subjectId);
+        window.dataSdk.deleteSubject(subject.subjectId);
         this.renderSubjects();
       });
 
@@ -124,7 +124,7 @@ window.elementSDK = {
     btn.addEventListener("click", () => {
       const name = input.value.trim();
       if (!name) return alert("Please enter a subject name!");
-      window.dataSDK.addSubject(name);
+      window.dataSdk.addSubject(name);
       input.value = "";
       this.renderSubjects();
     });
@@ -133,8 +133,8 @@ window.elementSDK = {
 </script>
   <script>
 window.addEventListener("DOMContentLoaded", () => {
-  elementSDK.initCreateButton();
-  elementSDK.renderSubjects();
+  elementSdk.initCreateButton();
+  elementSdk.renderSubjects();
 });
 </script>
 
