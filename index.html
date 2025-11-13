@@ -939,7 +939,7 @@ function addMessage(text, from = 'ai') {
 // Call the Vercel serverless AI function
 async function callAI(prompt) {
   try {
-    const response = await fetch('./api/ask', {
+    const response = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: prompt })
@@ -957,26 +957,39 @@ async function callAI(prompt) {
   }
 }
 
-// Send message handler
+let isSending = false;
+
 async function sendMessage() {
+  if (isSending) return; // block duplicate requests
+  isSending = true;
+
   const message = aiInput.value.trim();
-  if (!message) return;
+  if (!message) {
+    isSending = false;
+    return;
+  }
 
   addMessage(message, 'user');
   aiInput.value = '';
   addMessage('Typing...', 'ai');
 
-  const answer = await callAI(message);
+  try {
+    const answer = await callAI(message);
 
-  // Remove "Typing..." placeholder
-  const typingMsg = aiMessages.querySelector('div:last-child');
-  if (typingMsg && typingMsg.textContent === 'Typing...') {
-    typingMsg.remove();
+    // Remove "Typing..." placeholder
+    const typingMsg = aiMessages.querySelector('div:last-child');
+    if (typingMsg && typingMsg.textContent === 'Typing...') {
+      typingMsg.remove();
+    }
+
+    addMessage(answer, 'ai');
+  } catch (err) {
+    addMessage(`Error: ${err.message}`, 'ai');
+  } finally {
+    setTimeout(() => (isSending = false), 2000); // 2s cooldown
   }
-
-  addMessage(answer, 'ai');
 }
-
+ 
 // Event listeners
 aiSend.addEventListener('click', sendMessage);
 aiInput.addEventListener('keypress', (e) => {
