@@ -957,7 +957,7 @@ async function sendMessage() {
 // Call your AI API
 async function callAI(prompt) {
   try {
-    const response = await fetch('/api/ask', {
+    const response = await fetch('https://make-flash-card-git-main-rio-espaderas-projects.vercel.app/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: prompt })
