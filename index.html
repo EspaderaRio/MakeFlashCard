@@ -88,7 +88,7 @@ window.elementSdk = {
   // Render all subjects into the UI
   renderSubjects() {
     const subjects = window.dataSdk.getAll();
-    const container = document.getElementById("subject-list");
+    const container = document.getElementById("subjectsGrid");
     if (!container) return console.error("No #subject-list container found");
     container.innerHTML = "";
 
