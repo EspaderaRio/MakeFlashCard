@@ -1,21 +1,24 @@
 import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
-  // Allow requests from your GitHub Pages domain
-  res.setHeader('Access-Control-Allow-Origin', 'https://espaderario.github.io');
+  // Allow CORS from any origin (or restrict to your frontend domain)
+  res.setHeader('Access-Control-Allow-Origin', '*'); // <-- this is critical
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // Handle preflight request
   if (req.method === 'OPTIONS') {
-    // Respond to preflight request
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
-
-  const { message } = req.body;
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
   try {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: 'No message provided' });
+
     const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -32,6 +35,7 @@ export default async function handler(req, res) {
     const data = await openaiRes.json();
     res.status(200).json({ answer: data.choices[0].message.content });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
   }
 }
