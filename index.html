@@ -1824,6 +1824,8 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderSubjects() {
+     window.allRecords = dataSDK.getAll();
+     
       const subjects = getSubjects();
       const grid = document.getElementById('subjectsGrid');
       const emptyState = document.getElementById('subjectsEmptyState');
